@@ -1,0 +1,758 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer components {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+}
+
+/* ─── High Contrast Mode ───────────────────────────────────────────────────── */
+.high-contrast {
+  --border: #000000;
+  --input-border: #000000;
+  --muted-foreground: #1A1A1A;
+}
+.high-contrast.dark {
+  --border: #FFFFFF;
+  --input-border: #FFFFFF;
+  --muted-foreground: #F1F5F9;
+}
+.high-contrast *:focus-visible {
+  outline: 3px solid var(--ring) !important;
+  outline-offset: 3px;
+}
+
+/* ─── Reduced Motion ───────────────────────────────────────────────────────── */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ─── Enhanced Keyboard Focus (Tab navigation) ───────────────────────────── */
+/* Clear, prominent focus ring on all focusable elements when using keyboard */
+*:focus-visible {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 6px hsl(var(--primary) / 0.15);
+  transition: outline 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Even stronger focus when voice mode is active */
+.voice-active *:focus-visible {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 6px hsl(var(--primary) / 0.2),
+    0 0 16px hsl(var(--primary) / 0.25);
+  position: relative;
+  z-index: 1;
+}
+
+/* Pulsing indicator on focused element when voice is active */
+.voice-active *:focus-visible::after {
+  content: '🔊';
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  font-size: 14px;
+  z-index: 10;
+  pointer-events: none;
+  animation: voicePulse 1.5s ease-in-out infinite;
+}
+
+/* Don't add the speaker icon on elements that can't support ::after well */
+.voice-active input:focus-visible::after,
+.voice-active textarea:focus-visible::after,
+.voice-active select:focus-visible::after,
+.voice-active img:focus-visible::after,
+.voice-active br:focus-visible::after {
+  content: none;
+}
+
+@keyframes voicePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+
+/* Skip-to-content focus indicator */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  padding: 12px 24px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: 600;
+  border-radius: 0 0 8px 8px;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 0;
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Z-PATTERN TAB FLOW NAVIGATION                                             */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Floating flow indicator bar ──────────────────────────────────────── */
+.tab-flow-indicator {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  pointer-events: auto;
+  animation: flowSlideDown 0.3s ease-out;
+}
+
+@keyframes flowSlideDown {
+  from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+.tab-flow-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: hsl(var(--card));
+  border: 2px solid hsl(var(--primary));
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 4px 24px hsl(var(--primary) / 0.15), 0 2px 8px rgba(0,0,0,0.1);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.tab-flow-label {
+  font-weight: 700;
+  color: hsl(var(--primary));
+  padding-right: 6px;
+  border-right: 1px solid hsl(var(--border));
+  font-size: 12px;
+}
+
+.tab-flow-sections {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tab-flow-section {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tab-flow-section:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.tab-flow-section.active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+  font-weight: 700;
+  box-shadow: 0 0 8px hsl(var(--primary) / 0.3);
+}
+
+.tab-flow-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--primary-foreground));
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.7; }
+}
+
+.tab-flow-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.tab-flow-name {
+  line-height: 1;
+}
+
+.tab-flow-arrow {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  opacity: 0.5;
+  margin: 0 2px;
+}
+
+.tab-flow-grid-pos {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-weight: 600;
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.tab-flow-hint {
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  padding-left: 6px;
+  border-left: 1px solid hsl(var(--border));
+  font-family: monospace;
+}
+
+/* ─── Section focus-within highlighting (Z-flow zones) ─────────────────── */
+/* When Tab-navigating, highlight the section that contains focus */
+header:focus-within,
+nav:focus-within,
+footer:focus-within {
+  position: relative;
+}
+
+header:has(:focus-visible),
+footer:has(:focus-visible) {
+  box-shadow: inset 0 0 0 2px hsl(var(--primary) / 0.2);
+}
+
+main:has(:focus-visible) > section:has(:focus-visible),
+main:has(:focus-visible) > div:has(:focus-visible) {
+  position: relative;
+}
+
+/* ─── Grid Z-flow numbering (visible on keyboard nav) ──────────────────── */
+/* Show order numbers on grid children when tabbing through them */
+.z-flow-grid {
+  counter-reset: z-grid-counter;
+}
+
+.z-flow-grid > * {
+  counter-increment: z-grid-counter;
+  position: relative;
+}
+
+/* Show subtle numbering on grid items when any child in the grid has focus-visible */
+.z-flow-grid:has(:focus-visible) > * {
+  transition: box-shadow 0.2s ease;
+}
+
+.z-flow-grid:has(:focus-visible) > *::before {
+  content: counter(z-grid-counter);
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  border: 1.5px solid hsl(var(--border));
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Active grid item gets highlighted number */
+.z-flow-grid > *:has(:focus-visible)::before,
+.z-flow-grid > *:focus-visible::before {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border-color: hsl(var(--primary)) !important;
+  opacity: 1 !important;
+  transform: scale(1.2);
+  box-shadow: 0 0 6px hsl(var(--primary) / 0.4);
+}
+
+/* Highlight active grid item border */
+.z-flow-grid > *:has(:focus-visible),
+.z-flow-grid > *:focus-visible {
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.3);
+  border-radius: 8px;
+}
+
+/* ─── Tab navigation flow line ─────────────────────────────────────────── */
+/* Directional Z arrows between sections */
+.tab-flow-section-marker {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: hsl(var(--primary));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+*:focus-visible ~ .tab-flow-section-marker,
+*:has(:focus-visible) > .tab-flow-section-marker {
+  opacity: 1;
+}
+
+/* ─── RTL support for Z-flow ───────────────────────────────────────────── */
+[dir="rtl"] .tab-flow-arrow {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .tab-flow-bar {
+  direction: rtl;
+}
+
+[dir="rtl"] .z-flow-grid:has(:focus-visible) > *::before {
+  left: auto;
+  right: -8px;
+}
+
+/* ─── Responsive: hide flow bar detail on small screens ────────────────── */
+@media (max-width: 640px) {
+  .tab-flow-name {
+    display: none;
+  }
+  .tab-flow-hint {
+    display: none;
+  }
+  .tab-flow-grid-pos {
+    display: none;
+  }
+  .tab-flow-bar {
+    padding: 4px 10px;
+    gap: 4px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* VOICE ASSISTANT (Siri-like)                                                */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Floating Mic Button ──────────────────────────────────────────────── */
+.voice-assistant-trigger {
+  position: fixed;
+  bottom: 6rem;
+  right: 1.5rem;
+  z-index: 50;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
+  box-shadow:
+    0 4px 14px hsl(var(--primary) / 0.35),
+    0 2px 6px rgba(0,0,0,0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
+}
+
+.voice-assistant-trigger:hover {
+  transform: scale(1.1);
+  box-shadow:
+    0 6px 20px hsl(var(--primary) / 0.45),
+    0 3px 8px rgba(0,0,0,0.2);
+}
+
+.voice-assistant-trigger:active {
+  transform: scale(0.95);
+}
+
+.voice-assistant-trigger.is-listening {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  animation: micPulse 2s ease-in-out infinite;
+}
+
+@keyframes micPulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(59,130,246,0.35), 0 2px 6px rgba(0,0,0,0.15); }
+  50% { box-shadow: 0 4px 30px rgba(59,130,246,0.55), 0 2px 10px rgba(0,0,0,0.2); }
+}
+
+/* Pulsing rings behind mic button when listening */
+.voice-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  pointer-events: none;
+}
+
+.voice-ring-1 {
+  animation: voiceRingExpand 2s ease-out infinite;
+}
+.voice-ring-2 {
+  animation: voiceRingExpand 2s ease-out 0.5s infinite;
+}
+.voice-ring-3 {
+  animation: voiceRingExpand 2s ease-out 1s infinite;
+}
+
+@keyframes voiceRingExpand {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ─── Overlay ──────────────────────────────────────────────────────────── */
+.voice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4rem;
+  animation: voiceOverlayIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes voiceOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.voice-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.voice-overlay-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 420px;
+  width: 100%;
+  padding: 2rem;
+  animation: voiceContentSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes voiceContentSlideUp {
+  from { transform: translateY(60px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.voice-overlay-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.voice-overlay-close:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* ─── Animated Orb ─────────────────────────────────────────────────────── */
+.voice-orb {
+  width: 140px;
+  height: 140px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-orb-inner {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.voice-orb-gradient {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transition: all 0.5s ease;
+}
+
+/* Orb colors by state */
+.voice-orb.listening .voice-orb-gradient {
+  background: radial-gradient(circle at 40% 40%, #60a5fa, #3b82f6, #2563eb);
+  box-shadow:
+    0 0 40px rgba(59, 130, 246, 0.5),
+    0 0 80px rgba(59, 130, 246, 0.25),
+    inset 0 0 30px rgba(255,255,255,0.1);
+}
+
+.voice-orb.processing .voice-orb-gradient {
+  background: radial-gradient(circle at 40% 40%, #fbbf24, #f59e0b, #d97706);
+  box-shadow:
+    0 0 40px rgba(245, 158, 11, 0.5),
+    0 0 80px rgba(245, 158, 11, 0.25);
+}
+
+.voice-orb.success .voice-orb-gradient {
+  background: radial-gradient(circle at 40% 40%, #34d399, #10b981, #059669);
+  box-shadow:
+    0 0 40px rgba(16, 185, 129, 0.5),
+    0 0 80px rgba(16, 185, 129, 0.25);
+}
+
+.voice-orb.error .voice-orb-gradient {
+  background: radial-gradient(circle at 40% 40%, #f87171, #ef4444, #dc2626);
+  box-shadow:
+    0 0 40px rgba(239, 68, 68, 0.5),
+    0 0 80px rgba(239, 68, 68, 0.25);
+}
+
+.voice-orb.idle .voice-orb-gradient {
+  background: radial-gradient(circle at 40% 40%, #94a3b8, #64748b, #475569);
+  box-shadow: 0 0 20px rgba(100, 116, 139, 0.3);
+}
+
+/* Sound waves inside orb when listening */
+.voice-orb-wave {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.voice-orb-wave-1 {
+  width: 60%;
+  height: 60%;
+  animation: orbWave 1.5s ease-in-out infinite;
+}
+
+.voice-orb-wave-2 {
+  width: 80%;
+  height: 80%;
+  animation: orbWave 1.5s ease-in-out 0.3s infinite;
+}
+
+.voice-orb-wave-3 {
+  width: 100%;
+  height: 100%;
+  animation: orbWave 1.5s ease-in-out 0.6s infinite;
+}
+
+@keyframes orbWave {
+  0%, 100% { transform: scale(0.95); opacity: 0.3; }
+  50% { transform: scale(1.05); opacity: 0.7; }
+}
+
+/* Spinner for processing state */
+.voice-orb-spinner {
+  position: absolute;
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: rgba(255,255,255,0.6);
+  border-right-color: rgba(255,255,255,0.3);
+  animation: orbSpin 1s linear infinite;
+}
+
+@keyframes orbSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Check mark for success */
+.voice-orb-check {
+  position: absolute;
+  font-size: 48px;
+  color: white;
+  font-weight: 700;
+  z-index: 5;
+  animation: orbCheckIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes orbCheckIn {
+  from { transform: scale(0) rotate(-45deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* X for error */
+.voice-orb-x {
+  position: absolute;
+  font-size: 48px;
+  color: white;
+  font-weight: 700;
+  z-index: 5;
+  animation: orbCheckIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Mic icon inside orb */
+.voice-orb-icon {
+  position: relative;
+  z-index: 4;
+}
+
+/* ─── Status text area ─────────────────────────────────────────────────── */
+.voice-status {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.voice-status-label {
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.voice-transcript {
+  color: rgba(255,255,255,0.9);
+  font-size: 1.25rem;
+  font-weight: 500;
+  font-style: italic;
+  animation: fadeIn 0.3s ease;
+}
+
+.voice-feedback {
+  font-size: 0.95rem;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease;
+}
+
+/* ─── Suggestions ──────────────────────────────────────────────────────── */
+.voice-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  animation: fadeIn 0.5s ease 0.3s both;
+}
+
+.voice-suggestions-title {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.voice-suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.voice-suggestion-chip {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.75);
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.voice-suggestion-chip:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+/* ─── Hint at bottom ───────────────────────────────────────────────────── */
+.voice-hint {
+  color: rgba(255,255,255,0.35);
+  font-size: 0.75rem;
+  font-family: monospace;
+  text-align: center;
+}
+
+/* ─── Reduced motion support ───────────────────────────────────────────── */
+.reduce-motion .voice-orb-wave,
+.reduce-motion .voice-ring,
+.reduce-motion .voice-orb-spinner {
+  animation: none !important;
+}
+
+/* ─── Mobile responsive ────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .voice-overlay-content {
+    padding: 1.5rem 1rem;
+  }
+  .voice-orb {
+    width: 110px;
+    height: 110px;
+  }
+  .voice-orb-inner {
+    width: 90px;
+    height: 90px;
+  }
+  .voice-suggestion-chip {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.65rem;
+  }
+}
