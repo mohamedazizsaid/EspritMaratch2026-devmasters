@@ -4,6 +4,8 @@
 /build
 
 # Logs
+.env
+.env.example
 
 *.log
 npm-debug.log*

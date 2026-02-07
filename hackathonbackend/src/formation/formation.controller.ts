@@ -120,4 +120,24 @@ export class FormationController {
     validateFormation(@Param('formationId') formationId: string) {
         return this.formationService.validateFormation(formationId);
     }
+
+    @Post('check-formator-delays')
+    @ApiOperation({ summary: 'Vérifier les retards des formateurs (>15 min) et envoyer notifications' })
+    @ApiResponse({
+        status: 201,
+        description: 'Vérification terminée. Notifications envoyées aux formateurs en retard.',
+        schema: {
+            properties: {
+                notified: { type: 'number', description: 'Nombre de formateurs notifiés' },
+                errors: { type: 'number', description: 'Nombre d\'erreurs d\'envoi' },
+            },
+        },
+    })
+    @ApiResponse({
+        status: 400,
+        description: 'Erreur lors de la vérification des retards.',
+    })
+    checkFormatorDelays() {
+        return this.formationService.checkFormatorDelay();
+    }
 }

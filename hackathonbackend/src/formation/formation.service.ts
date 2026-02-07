@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Formation } from './entities/formation.entity';
@@ -11,10 +11,13 @@ import { CreateFormationDto } from './dto/create-formation.dto';
 import { UpdateFormationDto } from './dto/update-formation.dto';
 import { UpdateNiveauDto } from './dto/update-niveau.dto';
 import { UpdateSeanceDto } from './dto/update-seance.dto';
+import { MailingService } from '../auth/mailing.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class FormationService {
+    private readonly logger = new Logger('FormationService');
+
     constructor(
         @InjectModel(Formation.name) private formationModel: Model<Formation>,
         @InjectModel(Niveau.name) private niveauModel: Model<Niveau>,
@@ -22,6 +25,7 @@ export class FormationService {
         @InjectModel('Inscription') private inscriptionModel: Model<Inscription>,
         @InjectModel(Presence.name) private presenceModel: Model<Presence>,
         @InjectModel(Certification.name) private certificationModel: Model<Certification>,
+        private mailingService: MailingService,
     ) { }
 
     async create(createFormationDto: CreateFormationDto): Promise<Formation> {
@@ -492,6 +496,149 @@ export class FormationService {
         }
 
         return { advanced: currentNiveau > 1, currentNiveau };
+    }
+
+    /**
+     * Convertit une heure au format "HH:MM" en minutes depuis minuit
+     * @param timeStr Heure au format "HH:MM"
+     * @returns Nombre de minutes depuis minuit, ou 0 si format invalide
+     */
+    private parseTimeToMinutes(timeStr: string): number {
+        if (!timeStr) return 0;
+        const parts = timeStr.split(':');
+        if (parts.length !== 2) return 0;
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
+        if (isNaN(hours) || isNaN(minutes)) return 0;
+        return hours * 60 + minutes;
+    }
+
+    /**
+     * Combine une date avec une heure au format "HH:MM"
+     * @param datePrevue Date de la séance
+     * @param heureDebut Heure de début au format "HH:MM"
+     * @returns Date combinée avec l'heure
+     */
+    private combineDateAndTime(datePrevue: Date, heureDebut: string): Date {
+        if (!datePrevue || !heureDebut) return null;
+        
+        const minutes = this.parseTimeToMinutes(heureDebut);
+        const combinedDate = new Date(datePrevue);
+        combinedDate.setHours(0, 0, 0, 0);
+        combinedDate.setMinutes(combinedDate.getMinutes() + minutes);
+        
+        return combinedDate;
+    }
+
+    /**
+     * Vérifie les retards des formateurs (plus de 15 minutes après l'heure prévue)
+     * et envoie des notifications par email
+     * @returns Objet indiquant le nombre de notifications envoyées et les erreurs
+     */
+    async checkFormatorDelay(): Promise<{ notified: number; errors: number }> {
+        this.logger.log('🕐 Démarrage de la vérification des retards des formateurs...');
+        
+        let notifiedCount = 0;
+        let errorCount = 0;
+        const DELAY_THRESHOLD_MINUTES = 15;
+        const now = new Date();
+
+        try {
+            // Récupère toutes les séances avec les informations de niveau et formation
+            const seances = await this.seanceModel
+                .find({ date_prevue: { $exists: true, $ne: null } })
+                .populate({
+                    path: 'id_niveau',
+                    populate: {
+                        path: 'id_formation',
+                        populate: {
+                            path: 'id_formateur',
+                        },
+                    },
+                })
+                .exec();
+
+            this.logger.debug(`📋 ${seances.length} séances trouvées avec date_prevue`);
+
+            for (const seance of seances) {
+                try {
+                    // Vérifier que les infos nécessaires existent
+                    if (!seance.id_niveau || !seance.id_niveau.id_formation) {
+                        this.logger.warn(`⚠️ Seance ${seance._id} - Relations manquantes (Niveau ou Formation)`);
+                        continue;
+                    }
+
+                    const formation = seance.id_niveau.id_formation;
+                    if (!formation.id_formateur) {
+                        this.logger.warn(`⚠️ Seance ${seance._id} - Formation ${formation._id} sans formateur`);
+                        continue;
+                    }
+
+                    // Combine la date prévue avec l'heure de début
+                    const seanceStartTime = this.combineDateAndTime(
+                        seance.date_prevue,
+                        seance.heure_debut
+                    );
+
+                    if (!seanceStartTime) {
+                        this.logger.debug(`⏭️ Seance ${seance._id} - Heure de début invalide`);
+                        continue;
+                    }
+
+                    // Ajoute 15 minutes au délai maximum accepté
+                    const delayThreshold = new Date(seanceStartTime);
+                    delayThreshold.setMinutes(delayThreshold.getMinutes() + DELAY_THRESHOLD_MINUTES);
+
+                    // Vérifie si le formateur est en retard
+                    if (now > delayThreshold) {
+                        const minutesDelay = Math.round((now.getTime() - seanceStartTime.getTime()) / (1000 * 60));
+                        
+                        const formateur = formation.id_formateur;
+                        const formateurName = `${formateur.prenom} ${formateur.nom}`;
+
+                        this.logger.log({
+                            '📌 RETARD DETECTE': {
+                                formateur: formateurName,
+                                email: formateur.email,
+                                seance: seance.titre,
+                                minutesDelay,
+                                date: seanceStartTime.toLocaleString('fr-FR'),
+                            }
+                        });
+
+                        try {
+                            // Envoie la notification
+                            await this.mailingService.sendFormatorDelayNotification(
+                                formateur.email,
+                                formateurName,
+                                seance.titre,
+                                minutesDelay,
+                            );
+                            
+                            notifiedCount++;
+                            this.logger.log(`✅ Notification envoyée à ${formateurName} (${formateur.email})`);
+                        } catch (emailError) {
+                            errorCount++;
+                            this.logger.error(
+                                `❌ Erreur lors de l'envoi de l'email à ${formateurName}: ${emailError.message}`
+                            );
+                        }
+                    }
+                } catch (seanceError) {
+                    errorCount++;
+                    this.logger.error(
+                        `❌ Erreur lors du traitement de la séance ${seance._id}: ${seanceError.message}`
+                    );
+                }
+            }
+
+            this.logger.log(`✨ Vérification terminée - ${notifiedCount} formatrice(s) notifié(e)s, ${errorCount} erreur(s)`);
+            return { notified: notifiedCount, errors: errorCount };
+
+        } catch (error) {
+            this.logger.error(`❌ Erreur critique lors de la vérification des retards: ${error.message}`);
+            throw new BadRequestException(`Impossible de vérifier les retards: ${error.message}`);
+        }
     }
 }
 

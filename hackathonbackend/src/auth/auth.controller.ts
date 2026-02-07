@@ -1,11 +1,13 @@
-import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Param, Patch, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Param, Patch, Delete, Req, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ValidateResetCodeDto } from './dto/forgot-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Response } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -97,6 +99,19 @@ export class AuthController {
         return this.authService.requestPasswordReset(forgotPasswordDto);
     }
 
+    @Patch('onboarding/:id')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ summary: 'Compléter l\'onboarding d\'un utilisateur' })
+    @ApiResponse({ status: 200, description: 'Onboarding complété avec succès' })
+    @ApiResponse({ status: 404, description: 'Utilisateur non trouvé' })
+    async completeOnboarding(
+        @Param('id') id: string,
+        @Body() body: { accessibility: string },
+    ) {
+        return this.authService.completeOnboarding(id, body.accessibility);
+    }
+
     @Post('validate-reset-code')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Valider le code de réinitialisation et changer le mot de passe' })
@@ -104,5 +119,46 @@ export class AuthController {
     @ApiResponse({ status: 401, description: 'Code invalide ou expiré' })
     async validateResetCode(@Body() validateResetCodeDto: ValidateResetCodeDto) {
         return this.authService.validateResetCode(validateResetCodeDto);
+    }
+
+    @Get('google')
+    @UseGuards(GoogleAuthGuard)
+    @ApiOperation({ summary: 'Initier la connexion Google OAuth' })
+    @ApiResponse({ status: 302, description: 'Redirection vers Google' })
+    async googleAuth() {
+        // Ce point d'entrée redirige vers Google
+    }
+
+    @Get('google/callback')
+    @UseGuards(GoogleAuthGuard)
+    @ApiOperation({ summary: 'Callback Google OAuth' })
+    @ApiResponse({ status: 302, description: 'Redirection vers le frontend avec le token' })
+    async googleAuthCallback(@Req() req: any, @Res() res: Response) {
+        try {
+            const result = await this.authService.googleLogin({
+                email: req.user.email,
+                firstName: req.user.firstName,
+                lastName: req.user.lastName,
+                picture: req.user.picture,
+            });
+
+            // Rediriger vers le frontend avec le token et les infos utilisateur
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const params = new URLSearchParams({
+                token: result.access_token,
+                userId: result.user._id?.toString() || '',
+                email: result.user.email || '',
+                role: result.user.role || '',
+                nom: result.user.nom || '',
+                prenom: result.user.prenom || '',
+                onBoarding: result.user.onBoarding?.toString() || 'false',
+            });
+
+            return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
+        } catch (error) {
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const errorMessage = encodeURIComponent(error.message || 'Erreur de connexion Google');
+            return res.redirect(`${frontendUrl}/login?error=${errorMessage}`);
+        }
     }
 }

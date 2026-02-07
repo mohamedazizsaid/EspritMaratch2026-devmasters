@@ -8,6 +8,8 @@ import { Seance, SeanceSchema } from './entities/seance.entity';
 import { Inscription, InscriptionSchema } from 'src/inscription/entities/inscription.entity';
 import { Presence, PresenceSchema } from '../presence/entities/presence.entity';
 import { Certification, CertificationSchema } from '../certification/entities/certification.entity';
+import { AuthModule } from '../auth/auth.module';
+import { FormationScheduler } from './formation.scheduler';
 
 @Module({
   imports: [
@@ -19,9 +21,10 @@ import { Certification, CertificationSchema } from '../certification/entities/ce
       { name: Presence.name, schema: PresenceSchema },
       { name: Certification.name, schema: CertificationSchema },
     ]),
+    AuthModule,
   ],
   controllers: [FormationController],
-  providers: [FormationService],
+  providers: [FormationService, FormationScheduler],
   exports: [FormationService],
 })
 export class FormationModule { }

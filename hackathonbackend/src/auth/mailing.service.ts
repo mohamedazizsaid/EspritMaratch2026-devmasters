@@ -1,22 +1,32 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailingService {
     private transporter: nodemailer.Transporter;
+    private readonly logger = new Logger('MailingService');
 
     constructor() {
         // Configuration du transporteur SMTP
-        // Vous pouvez utiliser les variables d'environnement pour configurer le serveur SMTP
-        this.transporter = nodemailer.createTransport({
+        const smtpConfig = {
             host: process.env.SMTP_HOST || 'smtp.gmail.com',
             port: parseInt(process.env.SMTP_PORT || '587', 10),
             secure: process.env.SMTP_SECURE === 'true', // true voor port 465, false voor andere ports
             auth: {
-                user: process.env.SMTP_USER || 'your-email@example.com',
-                pass: process.env.SMTP_PASSWORD || 'your-password',
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASSWORD,
             },
-        });
+        };
+
+        this.logger.log('🔧 Initialisation du service SMTP...');
+        this.logger.debug(`Configuration: ${smtpConfig.host}:${smtpConfig.port} (secure: ${smtpConfig.secure})`);
+
+        // Vérifier que les credentials sont configurés
+        if (!smtpConfig.auth.user || !smtpConfig.auth.pass) {
+            this.logger.warn('⚠️ ATTENTION: Variables d\'environnement SMTP_USER ou SMTP_PASSWORD non configurées!');
+        }
+
+        this.transporter = nodemailer.createTransport(smtpConfig);
     }
 
     /**
@@ -43,11 +53,12 @@ export class MailingService {
         };
 
         try {
-            await this.transporter.sendMail(mailOptions);
-            console.log(`Email de création de compte envoyé à ${email}`);
+            this.logger.log(`📧 Envoi d'email d'inscription à ${email}...`);
+            const info = await this.transporter.sendMail(mailOptions);
+            this.logger.log(`✅ Email d'inscription envoyé à ${email} (ID: ${info.messageId})`);
         } catch (error) {
-            console.error('Erreur lors de l\'envoi de l\'email de création:', error);
-            throw new Error('Impossible d\'envoyer l\'email de création');
+            this.logger.error(`❌ Erreur lors de l\'envoi de l\'email d'inscription:`, error.message);
+            throw new Error(`Impossible d\'envoyer l\'email de création: ${error.message}`);
         }
     }
 
@@ -84,11 +95,58 @@ export class MailingService {
         };
 
         try {
-            await this.transporter.sendMail(mailOptions);
-            console.log(`Email de réinitialisation envoyé à ${email}`);
+            this.logger.log(`📧 Envoi du code de réinitialisation à ${email}...`);
+            this.logger.debug(`Code: ${resetCode}`);
+            const info = await this.transporter.sendMail(mailOptions);
+            this.logger.log(`✅ Email de réinitialisation envoyé à ${email} (ID: ${info.messageId})`);
         } catch (error) {
-            console.error('Erreur lors de l\'envoi de l\'email de réinitialisation:', error);
-            throw new Error('Impossible d\'envoyer l\'email de réinitialisation');
+            this.logger.error(`❌ Erreur lors de l\'envoi du code à ${email}:`, error.message);
+            throw new Error(`Impossible d\'envoyer le code de réinitialisation: ${error.message}`);
+        }
+    }
+
+    /**
+     * Envoie un email de notification de retard au formateur
+     * @param email Email du formateur
+     * @param formateurName Nom du formateur
+     * @param seanceName Nom/titre de la séance
+     * @param minutesDeLay Nombre de minutes de retard
+     */
+    async sendFormatorDelayNotification(
+        email: string,
+        formateurName: string,
+        seanceName: string,
+        minutesDeLay: number
+    ): Promise<void> {
+        const mailOptions = {
+            from: process.env.SMTP_FROM_EMAIL || 'noreply@hackathon.com',
+            to: email,
+            subject: '⚠️ Notification de retard - Action requise',
+            html: `
+                <h2>Notification de Retard</h2>
+                <p>Bonjour ${formateurName},</p>
+                <p>Vous êtes <strong>en retard de 15 minutes</strong> pour la séance suivante:</p>
+                <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                    <p><strong>Séance:</strong> ${seanceName}</p>
+                </div>
+                <p><strong>⚠️ Actions requises:</strong></p>
+                <ul>
+                    <li>Si vous allez être absent, <strong>contactez l'administration immédiatement</strong></li>
+                    <li>Renseignez votre statut de présence dans l'application</li>
+                </ul>
+                <p>Merci de votre diligence et de votre responsabilité envers les élèves.</p>
+                <p><strong>Besoin d'aide?</strong> Contactez l'administration: <a href="mailto:admin@hackathon.com">admin@hackathon.com</a></p>
+                <p>Cordialement,<br/>L'équipe Hackathon</p>
+            `,
+        };
+
+        try {
+            this.logger.log(`📧 Envoi notification de retard à ${email}...`);
+            const info = await this.transporter.sendMail(mailOptions);
+            this.logger.log(`✅ Email de notification de retard envoyé à ${email} (ID: ${info.messageId})`);
+        } catch (error) {
+            this.logger.error(`❌ Erreur lors de l\'envoi de la notification de retard à ${email}:`, error.message);
+            throw new Error(`Impossible d\'envoyer la notification de retard: ${error.message}`);
         }
     }
 }

@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
@@ -11,6 +11,8 @@ import { MailingService } from './mailing.service';
 
 @Injectable()
 export class AuthService {
+    private readonly logger = new Logger('AuthService');
+
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
         private jwtService: JwtService,
@@ -59,6 +61,8 @@ export class AuthService {
                 role: user.role,
                 actif: user.actif,
                 date_creation: user.date_creation,
+                onBoarding: user.onBoarding,
+                accessibility: user.accessibility,
             },
             access_token,
         };
@@ -112,6 +116,8 @@ export class AuthService {
                 role: user.role,
                 actif: user.actif,
                 date_creation: user.date_creation,
+                onBoarding: user.onBoarding,
+                accessibility: user.accessibility,
             },
             access_token,
         };
@@ -127,6 +133,33 @@ export class AuthService {
 
     async logout(): Promise<{ message: string }> {
         return { message: 'Déconnexion réussie' };
+    }
+
+    /**
+     * Compléter l'onboarding d'un utilisateur
+     * Sauvegarde les préférences d'accessibilité et marque onBoarding = true
+     */
+    async completeOnboarding(userId: string, accessibilityData: string): Promise<Partial<User>> {
+        const user = await this.userModel.findById(userId);
+        if (!user) {
+            throw new NotFoundException('Utilisateur non trouvé');
+        }
+
+        user.accessibility = accessibilityData;
+        user.onBoarding = true;
+        await user.save();
+
+        this.logger.log(`✅ Onboarding complété pour l'utilisateur: ${user.email}`);
+
+        return {
+            _id: user._id,
+            nom: user.nom,
+            prenom: user.prenom,
+            email: user.email,
+            role: user.role,
+            onBoarding: user.onBoarding,
+            accessibility: user.accessibility,
+        };
     }
 
     async getAllUsers(): Promise<Partial<User>[]> {
@@ -165,14 +198,20 @@ export class AuthService {
      * Génère un code aléatoire et l'envoie par email
      */
     async requestPasswordReset(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+        this.logger.log(`🔍 Recherche de l'utilisateur: ${forgotPasswordDto.email}`);
+        
         const user = await this.userModel.findOne({ email: forgotPasswordDto.email });
         if (!user) {
             // Pour des raisons de sécurité, ne pas révéler si l'email existe
+            this.logger.warn(`⚠️ Email non trouvé: ${forgotPasswordDto.email}`);
             return { message: 'Si cet email existe, vous recevrez un code de réinitialisation' };
         }
 
+        this.logger.log(`✅ Utilisateur trouvé: ${user.email}`);
+
         // Générer un code aléatoire de 6 chiffres
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        this.logger.log(`📝 Code généré: ${resetCode}`);
         
         // Définir l'expiration du code à 1 heure
         const resetCodeExpiry = new Date();
@@ -181,17 +220,26 @@ export class AuthService {
         // Sauvegarder le code et son expiration dans la base de données
         user.resetCode = resetCode;
         user.resetCodeExpiry = resetCodeExpiry;
-        await user.save();
+        
+        try {
+            await user.save();
+            this.logger.log(`💾 Code sauvegardé en base de données pour: ${user.email}`);
+        } catch (error) {
+            this.logger.error(`❌ Erreur lors de la sauvegarde: ${error.message}`);
+            throw new Error('Impossible de sauvegarder le code de réinitialisation');
+        }
 
         // Envoyer l'email avec le code
         try {
+            this.logger.log(`📧 Envoi de l'email à: ${user.email}`);
             await this.mailingService.sendForgetPassword(
                 user.email,
                 resetCode,
                 `${user.prenom} ${user.nom}`
             );
+            this.logger.log(`✅ Email envoyé avec succès à: ${user.email}`);
         } catch (error) {
-            console.error('Erreur lors de l\'envoi du code:', error);
+            this.logger.error(`❌ Erreur lors de l'envoi du code: ${error.message}`, error.stack);
             throw new Error('Impossible d\'envoyer le code de réinitialisation');
         }
 
@@ -202,35 +250,112 @@ export class AuthService {
      * Valider le code de réinitialisation et changer le mot de passe
      */
     async validateResetCode(validateResetCodeDto: ValidateResetCodeDto): Promise<{ message: string }> {
+        this.logger.log(`🔍 Validation du code pour: ${validateResetCodeDto.email}`);
+        
         const user = await this.userModel.findOne({ email: validateResetCodeDto.email });
         if (!user) {
+            this.logger.warn(`⚠️ Email non trouvé: ${validateResetCodeDto.email}`);
             throw new UnauthorizedException('Email non trouvé');
         }
 
+        this.logger.log(`✅ Utilisateur trouvé: ${user.email}`);
+
         // Vérifier que le code existe et n'a pas expiré
         if (!user.resetCode || !user.resetCodeExpiry) {
+            this.logger.warn(`⚠️ Aucun code de réinitialisation en attente pour: ${user.email}`);
             throw new UnauthorizedException('Aucune demande de réinitialisation en cours');
         }
 
         // Vérifier que le code n'a pas expiré
         if (new Date() > user.resetCodeExpiry) {
+            this.logger.warn(`⏰ Code expiré pour: ${user.email}. Expiry: ${user.resetCodeExpiry}`);
             throw new UnauthorizedException('Le code a expiré. Demandez un nouveau code.');
         }
 
         // Vérifier que le code correspond
         if (user.resetCode !== validateResetCodeDto.resetCode) {
+            this.logger.warn(`❌ Code incorrect fourni pour: ${user.email}. Attendu: ${user.resetCode}, Reçu: ${validateResetCodeDto.resetCode}`);
             throw new UnauthorizedException('Code de réinitialisation incorrect');
         }
 
+        this.logger.log(`✅ Code valide pour: ${user.email}`);
+
         // Hash le nouveau mot de passe
         const hashedPassword = await bcrypt.hash(validateResetCodeDto.newPassword, 10);
+        this.logger.log(`🔐 Mot de passe hashé pour: ${user.email}`);
 
         // Mettre à jour le mot de passe et supprimer les codes
         user.password = hashedPassword;
         user.resetCode = null;
         user.resetCodeExpiry = null;
-        await user.save();
+        
+        try {
+            await user.save();
+            this.logger.log(`💾 Mot de passe mis à jour avec succès pour: ${user.email}`);
+        } catch (error) {
+            this.logger.error(`❌ Erreur lors de la sauvegarde: ${error.message}`, error.stack);
+            throw new Error('Impossible de mettre à jour le mot de passe');
+        }
 
         return { message: 'Mot de passe réinitialisé avec succès' };
+    }
+
+    /**
+     * Connexion via Google OAuth
+     * Crée ou récupère l'utilisateur et génère un token JWT
+     */
+    async googleLogin(googleUser: {
+        email: string;
+        firstName: string;
+        lastName: string;
+        picture: string;
+    }): Promise<{ user: Partial<User>; access_token: string }> {
+        this.logger.log(`🔍 Google login pour: ${googleUser.email}`);
+
+        // Chercher si l'utilisateur existe déjà
+        let user = await this.userModel.findOne({ email: googleUser.email });
+
+        if (!user) {
+            // L'utilisateur n'existe pas - On ne le crée pas car seul l'admin peut ajouter des utilisateurs
+            this.logger.warn(`⚠️ Utilisateur Google non trouvé: ${googleUser.email}`);
+            throw new UnauthorizedException(
+                'Votre compte Google n\'est pas autorisé. Contactez votre administrateur.'
+            );
+        }
+
+        this.logger.log(`✅ Utilisateur trouvé via Google: ${user.email}`);
+
+        // Vérifier si le compte est actif
+        if (!user.actif) {
+            this.logger.warn(`⚠️ Compte désactivé: ${user.email}`);
+            throw new UnauthorizedException('Ce compte est désactivé');
+        }
+
+        // Mettre à jour les informations Google si nécessaire
+        if (googleUser.picture && user.googlePicture !== googleUser.picture) {
+            user.googlePicture = googleUser.picture;
+            await user.save();
+        }
+
+        const payload = { sub: user._id, email: user.email, role: user.role };
+        const access_token = this.jwtService.sign(payload);
+
+        this.logger.log(`✅ Token généré pour Google user: ${user.email}`);
+
+        return {
+            user: {
+                _id: user._id,
+                nom: user.nom,
+                prenom: user.prenom,
+                email: user.email,
+                role: user.role,
+                actif: user.actif,
+                date_creation: user.date_creation,
+                googlePicture: user.googlePicture,
+                onBoarding: user.onBoarding,
+                accessibility: user.accessibility,
+            },
+            access_token,
+        };
     }
 }

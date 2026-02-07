@@ -18,14 +18,23 @@ export class User extends Document {
     @Prop({ required: true, unique: true, maxlength: 150 })
     email: string;
 
-    @Prop({ required: true })
+    @Prop({ required: false })
     password: string;
+
+    @Prop({ default: null })
+    googlePicture: string;
 
     @Prop({ type: String, enum: UserRole, required: true })
     role: UserRole;
 
     @Prop({ default: Date.now })
     date_creation: Date;
+
+    @Prop({ default: false })
+    onBoarding: boolean;
+
+    @Prop({ default: null })
+    accessibility: string;
 
     @Prop({ default: true })
     actif: boolean;
