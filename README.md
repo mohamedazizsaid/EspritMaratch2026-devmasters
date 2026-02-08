@@ -341,7 +341,49 @@ FormaPro/
 
 ## 📸 Captures d'écran
 
-> _À ajouter : captures d'écran du dashboard, chatbot IA, eye tracking, 2FA setup, certificat PDF_
+### 🖥️ INTERFACE ADMIN
+<p align="center">
+  <img src="images/analytic%20admin.png" width="100%" alt="Admin Analytics" />
+  <br>
+  <em>Vue d'ensemble analytique du tableau de bord administrateur</em>
+</p>
+<p align="center">
+  <img src="images/gere%20usersadmin.png" width="100%" alt="Gestion Utilisateurs" />
+  <br>
+  <em>Gestion des utilisateurs et des rôles</em>
+</p>
+
+### 👔 Responsable
+<p align="center">
+  <img src="images/dashresponsable-sombre%20mode.png" width="100%" alt="Dashboard Responsable" />
+  <br>
+  <em>Interface du responsable de formation en mode sombre</em>
+</p>
+
+### 👨‍🏫 Formateur
+<p align="center">
+  <img src="images/Dashformateur.png" width="100%" alt="Dashboard Formateur" />
+  <br>
+  <em>Tableau de bord du formateur pour la gestion de ses sessions</em>
+</p>
+
+### ♿ Accessibilité & Innovation
+<p align="center">
+  <img src="images/suivi%20oculaire.png" width="45%" alt="Eye Tracking" />
+  <img src="images/presence%20faceid.png" width="45%" alt="Face ID Presence" />
+</p>
+<p align="center">
+  <em>Contrôle par suivi oculaire et présence par reconnaissance faciale</em>
+</p>
+
+### 🔐 Sécurité & Certificats
+<p align="center">
+  <img src="images/enable2FA.png" width="45%" alt="2FA" />
+  <img src="images/certif.png" width="45%" alt="Certificat" />
+</p>
+<p align="center">
+  <em>Activation 2FA (TOTP) et génération de certificats PDF</em>
+</p>
 
 ---
 
