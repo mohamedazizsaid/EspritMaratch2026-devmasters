@@ -14,7 +14,8 @@ import {
   Users, TrendingUp, BookOpen, Search, Filter, CheckCircle2, XCircle, Plus,
   Loader2, Award, FileText, Trash2, Edit, Calendar, Clock, UserPlus,
   BarChart3, ClipboardCheck, ChevronDown, ChevronRight, ChevronLeft, Save, X, Send,
-  MessageSquare, Eye, Bot, Camera, Sparkles
+  MessageSquare, Eye, Bot, Camera, Sparkles,
+  Volume2, VolumeX, Mic, MicOff
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { toast } from 'sonner';
@@ -26,11 +27,19 @@ import { certificationService } from '../../../services/api/certification.servic
 import { chatbotService } from '../../../services/chatbot.service';
 import { useAuth } from '../../../services/api/hooks';
 import type { Formation, FormationDetail, Inscription, Eleve, Certification, Presence, Niveau, Seance, ChatHistory } from '../../lib/types';
-import { useTranslation } from '../../lib/i18n';
+import { useTranslation, type Language } from '../../lib/i18n';
+
+const MGR_CHAT_TTS_LOCALES: Record<Language, string> = {
+  fr: 'fr-FR',
+  en: 'en-US',
+  ar: 'ar-SA',
+  es: 'es-ES',
+};
 
 export function ManagerDashboard() {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const ttsLocale = MGR_CHAT_TTS_LOCALES[lang] || 'fr-FR';
   const [loading, setLoading] = useState(true);
 
   const [formations, setFormations] = useState<Formation[]>([]);
@@ -107,6 +116,68 @@ export function ManagerDashboard() {
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // TTS / STT state for chatbot audio accessibility
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [dictating, setDictating] = useState(false);
+  const dictationRef = useRef<any>(null);
+
+  const handleReadAloud = useCallback((text: string, msgId: string) => {
+    if (!('speechSynthesis' in window)) {
+      toast.error(t('chatbot.ttsNotSupported'));
+      return;
+    }
+    if (speakingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = ttsLocale;
+    utter.rate = 1;
+    utter.onend = () => setSpeakingMsgId(null);
+    utter.onerror = () => setSpeakingMsgId(null);
+    setSpeakingMsgId(msgId);
+    window.speechSynthesis.speak(utter);
+  }, [speakingMsgId, ttsLocale, t]);
+
+  const handleStartDictation = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error(t('chatbot.sttNotSupported'));
+      return;
+    }
+    if (dictating && dictationRef.current) {
+      dictationRef.current.stop();
+      setDictating(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = ttsLocale;
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.onresult = (event: any) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) transcript += event.results[i][0].transcript;
+      }
+      if (transcript) setChatMessage(prev => prev + (prev ? ' ' : '') + transcript);
+    };
+    recognition.onerror = () => { setDictating(false); dictationRef.current = null; };
+    recognition.onend = () => { setDictating(false); dictationRef.current = null; };
+    dictationRef.current = recognition;
+    recognition.start();
+    setDictating(true);
+  }, [dictating, ttsLocale, t]);
+
+  // Cleanup TTS/STT on unmount
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+      if (dictationRef.current) { try { dictationRef.current.stop(); } catch {} }
+    };
+  }, []);
   const [chatInitialized, setChatInitialized] = useState(false);
 
   // Calendar
@@ -1426,6 +1497,20 @@ export function ManagerDashboard() {
                                     <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" />
                                   </div>
                                   <span className="text-xs font-semibold text-primary">Gemini</span>
+                                  <button
+                                    onClick={() => handleReadAloud(ch.assistantResponse, ch._id)}
+                                    className={`ml-auto p-1 rounded-md transition-all duration-200 hover:bg-primary/10 ${
+                                      speakingMsgId === ch._id ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-primary'
+                                    }`}
+                                    aria-label={speakingMsgId === ch._id ? t('chatbot.stopListening') : t('chatbot.listenResponse')}
+                                    title={speakingMsgId === ch._id ? t('chatbot.stopListening') : t('chatbot.listenResponse')}
+                                  >
+                                    {speakingMsgId === ch._id ? (
+                                      <VolumeX className="h-3.5 w-3.5" aria-hidden="true" />
+                                    ) : (
+                                      <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                    )}
+                                  </button>
                                 </div>
                                 <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">{ch.assistantResponse}</p>
                               </div>
@@ -1455,24 +1540,42 @@ export function ManagerDashboard() {
 
                     {/* Message input */}
                     <div className="flex gap-2">
-                      <label htmlFor="manager-chat-input" className="sr-only">Votre message</label>
+                      <label htmlFor="manager-chat-input" className="sr-only">{t('chatbot.yourMessage')}</label>
                       <Textarea
                         id="manager-chat-input"
                         value={chatMessage}
                         onChange={(e) => setChatMessage(e.target.value)}
-                        placeholder="Posez votre question pédagogique…"
+                        placeholder={dictating ? t('chatbot.micListening') : t('chatbot.placeholder')}
                         rows={2}
                         className="flex-1 resize-none text-sm transition-all focus:ring-2 focus:ring-primary/30"
                         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
                         disabled={chatSending}
-                        aria-label="Écrire un message à l'assistant"
+                        aria-label={t('chatbot.writeMessage')}
                       />
+                      {/* Mic dictation button */}
+                      <Button
+                        variant={dictating ? 'default' : 'outline'}
+                        onClick={handleStartDictation}
+                        className={`self-end h-10 w-10 p-0 rounded-xl transition-all duration-200 ${
+                          dictating
+                            ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse ring-2 ring-red-500/30'
+                            : 'hover:shadow-md hover:scale-105'
+                        }`}
+                        aria-label={dictating ? t('chatbot.stopDictation') : t('chatbot.speakMessage')}
+                        title={dictating ? t('chatbot.stopDictation') : t('chatbot.speakMessage')}
+                      >
+                        {dictating ? (
+                          <MicOff className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <Mic className="h-4 w-4" aria-hidden="true" />
+                        )}
+                      </Button>
                       <Button
                         onClick={handleSendChat}
                         disabled={chatSending || !chatMessage.trim()}
                         className="self-end h-10 w-10 p-0 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md hover:scale-105 disabled:scale-100"
-                        aria-label={chatSending ? 'Envoi en cours' : 'Envoyer le message'}
-                        title="Envoyer (Entrée)"
+                        aria-label={chatSending ? t('common.sending') : t('common.sendMessage')}
+                        title={t('chatbot.sendEnter')}
                       >
                         {chatSending ? (
                           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

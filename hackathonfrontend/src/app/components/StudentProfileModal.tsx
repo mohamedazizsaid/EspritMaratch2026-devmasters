@@ -164,29 +164,7 @@ export function StudentProfileModal({
               </div>
             )}
 
-            {student.progress !== undefined && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <h4 className="text-sm font-medium text-muted-foreground">
-                    Progression
-                  </h4>
-                </div>
-                <p className="text-base font-medium">{student.progress}%</p>
-              </div>
-            )}
-
-            {student.grade && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <h4 className="text-sm font-medium text-muted-foreground">
-                    Note
-                  </h4>
-                </div>
-                <p className="text-base font-medium">{student.grade}</p>
-              </div>
-            )}
+       
           </div>
 
           {/* Divider */}
@@ -197,7 +175,6 @@ export function StudentProfileModal({
             <Button variant="outline" onClick={onClose}>
               Fermer
             </Button>
-            <Button>Voir plus</Button>
           </div>
         </div>
       </div>

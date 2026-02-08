@@ -9,7 +9,7 @@ import { OnBoarding } from './components/OnBoarding';
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
-  const [userRole, setUserRole] = useState<'student' | 'instructor' | 'manager' | 'admin'>('student');
+  const [userRole, setUserRole] = useState<'Formateurs' | 'responsableformation' | 'Admin'>('Formateurs');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingData, setOnboardingData] = useState<{
     userId: string;
@@ -18,7 +18,7 @@ export default function App() {
     redirectPath: string;
   } | null>(null);
 
-  const handleLogin = (email: string, role: 'student' | 'instructor' | 'manager' | 'admin') => {
+  const handleLogin = (email: string, role: 'Formateurs' | 'responsableformation' | 'Admin') => {
     setIsAuthenticated(true);
     setUserEmail(email);
     setUserRole(role);
@@ -57,7 +57,7 @@ export default function App() {
   const handleRegister = (email: string) => {
     setIsAuthenticated(true);
     setUserEmail(email);
-    setUserRole('student');
+    setUserRole('Formateurs');
   };
 
   const handleLogout = async () => {
@@ -68,7 +68,7 @@ export default function App() {
     } finally {
       setIsAuthenticated(false);
       setUserEmail('');
-      setUserRole('student');
+      setUserRole('Formateurs');
       setShowOnboarding(false);
       setOnboardingData(null);
     }

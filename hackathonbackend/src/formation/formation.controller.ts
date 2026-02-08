@@ -56,6 +56,13 @@ export class FormationController {
         return this.formationService.remove(id);
     }
 
+    @Get('formateur/:id_formateur/student-progress')
+    @ApiOperation({ summary: 'Récupérer la progression des étudiants basée sur la présence' })
+    @ApiResponse({ status: 200, description: 'Progression des étudiants récupérée.' })
+    getStudentProgressByFormateur(@Param('id_formateur') id_formateur: string) {
+        return this.formationService.getStudentProgressByFormateur(id_formateur);
+    }
+
     @Get('formateur/:id_formateur/seances')
     @ApiOperation({ summary: 'Récupérer toutes les séances d\'un formateur' })
     @ApiResponse({ status: 200, description: 'Séances du formateur récupérées.' })

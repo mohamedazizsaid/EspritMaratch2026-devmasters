@@ -30,9 +30,33 @@ import {
   Rocket,
   Mic,
   MicOff,
+  Globe,
 } from 'lucide-react';
+import { useTranslation, type Language } from '../lib/i18n';
 
-// ─── TTS helpers (mêmes que AccessibilityPanel) ─────────────────────────────
+// ─── Language → TTS locale mapping ──────────────────────────────────────────
+const TTS_LOCALES: Record<Language, string> = {
+  fr: 'fr-FR',
+  en: 'en-US',
+  ar: 'ar-SA',
+  es: 'es-ES',
+};
+
+const LANG_LABELS: Record<Language, string> = {
+  fr: 'Français',
+  en: 'English',
+  ar: 'العربية',
+  es: 'Español',
+};
+
+const LANG_FLAGS: Record<Language, string> = {
+  fr: '🇫🇷',
+  en: '🇬🇧',
+  ar: '🇸🇦',
+  es: '🇪🇸',
+};
+
+// ─── TTS helpers ─────────────────────────────────────────────────────────────
 function speak(text: string, lang: string = 'fr-FR') {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
@@ -41,6 +65,11 @@ function speak(text: string, lang: string = 'fr-FR') {
   u.rate = 0.95;
   u.pitch = 1;
   window.speechSynthesis.speak(u);
+}
+
+// ─── Simple template helper: replace {key} with values ──────────────────────
+function tpl(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? `{${key}}`));
 }
 
 function stopSpeaking() {
@@ -74,6 +103,8 @@ interface OnBoardingProps {
 
 // ─── Composant principal ────────────────────────────────────────
 export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardingProps) {
+  const { t, lang, setLang } = useTranslation();
+  const ttsLocale = TTS_LOCALES[lang];
   const [phase, setPhase] = useState<'welcome' | 'questionnaire' | 'tour' | 'complete'>('welcome');
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [currentTourStep, setCurrentTourStep] = useState(0);
@@ -88,9 +119,9 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
   // ─── Auto-read helper ─────────────────────────────────────
   const announce = useCallback((text: string) => {
     if (voiceEnabled) {
-      speak(text, 'fr-FR');
+      speak(text, ttsLocale);
     }
-  }, [voiceEnabled]);
+  }, [voiceEnabled, ttsLocale]);
 
   // ─── Speech Recognition (Mic for Oui/Non + navigation) ────
   const stopMicListening = useCallback(() => {
@@ -110,7 +141,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      if (voiceEnabled) speak('La reconnaissance vocale n\'est pas supportée par votre navigateur.', 'fr-FR');
+      if (voiceEnabled) speak(t('onboarding.ttsSpeechNotSupported'), ttsLocale);
       return;
     }
 
@@ -123,7 +154,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     stopSpeaking();
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'fr-FR';
+    recognition.lang = ttsLocale;
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 5;
@@ -187,7 +218,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
 
       // Not understood
       if (voiceEnabled) {
-        speak('Je n\'ai pas compris. Dites Oui ou Non pour répondre.', 'fr-FR');
+        speak(t('onboarding.ttsNotUnderstood'), ttsLocale);
       }
       setMicListening(false);
     };
@@ -195,7 +226,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     recognition.onerror = (event: any) => {
       console.warn('Speech recognition error:', event.error);
       if (event.error === 'no-speech' && voiceEnabled) {
-        speak('Aucune parole détectée. Appuyez sur le micro pour réessayer.', 'fr-FR');
+        speak(t('onboarding.ttsNoSpeech'), ttsLocale);
       }
       setMicListening(false);
     };
@@ -215,7 +246,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
         recognitionRef.current.stop();
       }
     }, 6000);
-  }, [voiceEnabled]);
+  }, [voiceEnabled, ttsLocale, t]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -242,19 +273,19 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     pendingNavRef.current = (cmd: string) => {
       if (phase === 'welcome' && (cmd === 'commencer' || cmd === 'suivant')) {
         setPhase('questionnaire');
-        if (voiceEnabled) speak('Démarrage du questionnaire.', 'fr-FR');
+        if (voiceEnabled) speak(t('onboarding.ttsStartQuestionnaire'), ttsLocale);
       } else if (phase === 'questionnaire') {
         if (cmd === 'precedent' && currentQuestion > 0) {
           setCurrentQuestion(prev => prev - 1);
-          if (voiceEnabled) speak('Question précédente.', 'fr-FR');
+          if (voiceEnabled) speak(t('onboarding.ttsPrevQuestion'), ttsLocale);
         } else if (cmd === 'passer') {
           // Skip question (answer null, move to next)
           if (currentQuestion < totalSteps - 1) {
             setCurrentQuestion(prev => prev + 1);
-            if (voiceEnabled) speak('Question suivante.', 'fr-FR');
+            if (voiceEnabled) speak(t('onboarding.ttsNextQuestion'), ttsLocale);
           } else {
             setPhase('tour');
-            if (voiceEnabled) speak('Passons à la visite guidée.', 'fr-FR');
+            if (voiceEnabled) speak(t('onboarding.ttsToTour'), ttsLocale);
           }
         }
       } else if (phase === 'tour') {
@@ -267,7 +298,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
             setPhase('questionnaire');
             setCurrentQuestion(totalSteps - 1);
           }
-          if (voiceEnabled) speak('Étape précédente.', 'fr-FR');
+          if (voiceEnabled) speak(t('onboarding.ttsPrevStep'), ttsLocale);
         } else if ((cmd === 'terminer' || cmd === 'suivant') && currentTourStep === tourSteps.length - 1) {
           handleComplete();
         }
@@ -290,7 +321,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
   const [answers, setAnswers] = useState<AccessibilityAnswer[]>([
     {
       id: 'low_vision',
-      question: 'Avez-vous des difficultés de vision ou utilisez-vous un agrandisseur d\'écran ?',
+      question: 'qLowVision',
       answer: null,
       icon: <Eye className="h-6 w-6" />,
       category: 'vision',
@@ -298,7 +329,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     },
     {
       id: 'high_contrast',
-      question: 'Avez-vous besoin de contrastes élevés pour lire le texte à l\'écran ?',
+      question: 'qHighContrast',
       answer: null,
       icon: <Monitor className="h-6 w-6" />,
       category: 'vision',
@@ -306,7 +337,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     },
     {
       id: 'dark_mode',
-      question: 'Préférez-vous un mode sombre pour réduire la fatigue oculaire ?',
+      question: 'qDarkMode',
       answer: null,
       icon: <Moon className="h-6 w-6" />,
       category: 'vision',
@@ -314,7 +345,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     },
     {
       id: 'motor_difficulty',
-      question: 'Avez-vous des difficultés motrices pour utiliser une souris classique ?',
+      question: 'qMotorDifficulty',
       answer: null,
       icon: <Hand className="h-6 w-6" />,
       category: 'motor',
@@ -322,7 +353,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     },
     {
       id: 'keyboard_nav',
-      question: 'Préférez-vous naviguer exclusivement avec le clavier ?',
+      question: 'qKeyboardNav',
       answer: null,
       icon: <Keyboard className="h-6 w-6" />,
       category: 'motor',
@@ -330,7 +361,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     },
     {
       id: 'large_click',
-      question: 'Avez-vous besoin de zones cliquables plus grandes ?',
+      question: 'qLargeClick',
       answer: null,
       icon: <MousePointer2 className="h-6 w-6" />,
       category: 'motor',
@@ -338,7 +369,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     },
     {
       id: 'screen_reader',
-      question: 'Utilisez-vous un lecteur d\'écran ou la lecture vocale ?',
+      question: 'qScreenReader',
       answer: null,
       icon: <Volume2 className="h-6 w-6" />,
       category: 'hearing',
@@ -346,7 +377,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     },
     {
       id: 'reduce_motion',
-      question: 'Les animations à l\'écran vous gênent-elles ou provoquent-elles un malaise ?',
+      question: 'qReduceMotion',
       answer: null,
       icon: <Brain className="h-6 w-6" />,
       category: 'cognitive',
@@ -354,65 +385,73 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     },
   ]);
 
+  // Helper to get translated question text
+  const getQuestionText = (q: AccessibilityAnswer) => t(`onboarding.${q.question}`);
+
   // ─── Auto-read: Welcome Phase ──────────────────────────────
   useEffect(() => {
     if (phase === 'welcome' && voiceEnabled) {
-      announce(`Bienvenue ${userName}! Avant de commencer, nous allons personnaliser votre expérience. Cliquez sur Commencer pour débuter le questionnaire d'accessibilité.`);
+      announce(tpl(t('onboarding.ttsWelcome'), { name: userName }));
     }
-  }, [phase, voiceEnabled, userName, announce]);
+  }, [phase, voiceEnabled, userName, announce, t]);
 
   // ─── Auto-read: Questionnaire questions ────────────────────
   useEffect(() => {
     if (phase === 'questionnaire' && voiceEnabled) {
       const q = answers[currentQuestion];
-      announce(`Question ${currentQuestion + 1} sur ${answers.length}. Catégorie ${getCategoryLabel(q.category)}. ${q.question}. Répondez Oui ou Non.`);
+      announce(tpl(t('onboarding.ttsQuestionAnnounce'), {
+        current: currentQuestion + 1,
+        total: answers.length,
+        category: getCategoryLabel(q.category),
+        question: getQuestionText(q),
+      }));
     }
-  }, [phase, currentQuestion, voiceEnabled, answers, announce]);
+  }, [phase, currentQuestion, voiceEnabled, answers, announce, t]);
 
   // ─── Auto-read: Tour steps ─────────────────────────────────
   useEffect(() => {
     if (phase === 'tour' && voiceEnabled) {
       const step = tourSteps[currentTourStep];
       if (step) {
-        const text = `${step.title}. ${step.description}${step.tip ? `. Astuce : ${step.tip}` : ''}`;
+        const text = `${step.title}. ${step.description}${step.tip ? `. ${t('onboarding.tourTip')} ${step.tip}` : ''}`;
         announce(text);
       }
     }
-  }, [phase, currentTourStep, voiceEnabled]);
+  }, [phase, currentTourStep, voiceEnabled, t]);
 
   // ─── Auto-read: Complete ───────────────────────────────────
   useEffect(() => {
     if (phase === 'complete' && voiceEnabled) {
-      announce('Configuration terminée ! Vos préférences ont été sauvegardées. La plateforme est maintenant adaptée à vos besoins. Redirection automatique.');
+      announce(t('onboarding.ttsCompleteDone'));
     }
-  }, [phase, voiceEnabled, announce]);
+  }, [phase, voiceEnabled, announce, t]);
 
   // ─── Tour Steps by role ────────────────────────────────────
   const getGuidedTourSteps = (): GuidedTourStep[] => {
     const commonSteps: GuidedTourStep[] = [
       {
-        title: '🎯 Votre tableau de bord',
-        description: 'C\'est votre espace principal. Vous y trouverez un résumé de vos activités, statistiques et accès rapide aux fonctionnalités.',
+        title: t('onboarding.tourDashboardTitle'),
+        description: t('onboarding.tourDashboardDesc'),
         icon: <BarChart3 className="h-8 w-8" />,
-        tip: 'Vous pouvez personnaliser l\'affichage avec le panneau d\'accessibilité en haut à droite.',
+        tip: t('onboarding.tourDashboardTip'),
       },
       {
-        title: '♿ Paramètres d\'accessibilité',
-        description: 'Cliquez sur l\'icône d\'accessibilité en bas à droite pour ajuster : taille du texte, mode sombre/clair, contraste élevé, lecture vocale et langue.',
+        title: t('onboarding.tourA11yTitle'),
+        description: t('onboarding.tourA11yDesc'),
         icon: <Accessibility className="h-8 w-8" />,
-        tip: 'Vos préférences sont sauvegardées automatiquement et appliquées à chaque connexion.',
+        tip: t('onboarding.tourA11yTip'),
       },
       {
-        title: '🔊 Lecture vocale',
-        description: 'Activez la lecture vocale dans le panneau d\'accessibilité pour que chaque élément cliqué ou navigué au clavier soit lu à haute voix. Idéal pour les utilisateurs malvoyants ou en situation de handicap visuel.',
+        title: t('onboarding.tourVoiceTitle'),
+        description: t('onboarding.tourVoiceDesc'),
         icon: <Volume2 className="h-8 w-8" />,
-        tip: 'La lecture vocale fonctionne aussi avec la navigation au clavier (touche Tab). Appuyez sur Alt+S pour accéder directement au contenu principal.',
+        tip: t('onboarding.tourVoiceTip'),
       },
       {
-        title: '🎙️ Assistant vocal',
-        description: 'Utilisez l\'assistant vocal pour naviguer à la voix ! Appuyez sur Alt+V ou cliquez sur le bouton micro. Dites "formations", "contact", "mode sombre" ou "descendre" pour contrôler la plateforme sans souris ni clavier.',
+        title: t('onboarding.tourAssistantTitle'),
+        description: t('onboarding.tourAssistantDesc'),
         icon: <Mic className="h-8 w-8" />,
-        tip: 'L\'assistant vocal supporte le français, l\'anglais, l\'arabe et l\'espagnol. Vous pouvez l\'activer depuis le panneau d\'accessibilité.',
+        tip: t('onboarding.tourAssistantTip'),
       },
     ];
 
@@ -420,28 +459,28 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
       return [
         ...commonSteps,
         {
-          title: '📚 Vos formations',
-          description: 'L\'onglet "Mes formations" affiche toutes les formations qui vous sont assignées avec le nombre d\'étudiants et la progression.',
+          title: t('onboarding.tourFormationsTitle'),
+          description: t('onboarding.tourFormationsDesc'),
           icon: <BookOpen className="h-8 w-8" />,
-          tip: 'Cliquez sur "Voir détails" pour accéder aux niveaux et séances d\'une formation.',
+          tip: t('onboarding.tourFormationsTip'),
         },
         {
-          title: '👨‍🎓 Vos étudiants',
-          description: 'L\'onglet "Mes étudiants" liste tous les élèves inscrits à vos formations. Cliquez sur "Voir profil" pour consulter leur fiche détaillée.',
+          title: t('onboarding.tourStudentsTitle'),
+          description: t('onboarding.tourStudentsDesc'),
           icon: <Users className="h-8 w-8" />,
-          tip: 'Utilisez la barre de recherche pour trouver rapidement un étudiant.',
+          tip: t('onboarding.tourStudentsTip'),
         },
         {
-          title: '📅 Calendrier des séances',
-          description: 'Le calendrier vous montre toutes vos séances planifiées. Les dates avec des séances sont marquées en couleur.',
+          title: t('onboarding.tourCalendarTitle'),
+          description: t('onboarding.tourCalendarDesc'),
           icon: <Calendar className="h-8 w-8" />,
-          tip: 'Naviguez entre les mois pour voir vos prochaines séances.',
+          tip: t('onboarding.tourCalendarTip'),
         },
         {
-          title: '🤖 Assistant IA',
-          description: 'L\'assistant pédagogique IA, propulsé par Gemini, peut vous aider à préparer vos cours, générer des exercices et répondre à vos questions pédagogiques.',
+          title: t('onboarding.tourAITitle'),
+          description: t('onboarding.tourAIDesc'),
           icon: <MessageSquare className="h-8 w-8" />,
-          tip: 'Sélectionnez une formation comme contexte pour des réponses plus précises.',
+          tip: t('onboarding.tourAITip'),
         },
       ];
     }
@@ -450,28 +489,28 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
       return [
         ...commonSteps,
         {
-          title: '👥 Gestion des élèves',
-          description: 'Créez des fiches élèves, suivez leurs inscriptions et leur parcours de formation. Vous pouvez ajouter des photos via la caméra ou manuellement.',
+          title: t('onboarding.tourManageStudentsTitle'),
+          description: t('onboarding.tourManageStudentsDesc'),
           icon: <GraduationCap className="h-8 w-8" />,
-          tip: 'Les élèves peuvent être inscrits à plusieurs formations simultanément.',
+          tip: t('onboarding.tourManageStudentsTip'),
         },
         {
-          title: '📚 Gestion des formations',
-          description: 'Créez des formations, qui génèrent automatiquement des niveaux et séances. Activez ou désactivez les niveaux selon la progression.',
+          title: t('onboarding.tourManageFormationsTitle'),
+          description: t('onboarding.tourManageFormationsDesc'),
           icon: <BookOpen className="h-8 w-8" />,
-          tip: 'Les niveaux sont déverrouillés automatiquement quand le précédent est complété.',
+          tip: t('onboarding.tourManageFormationsTip'),
         },
         {
-          title: '📋 Inscriptions & Présences',
-          description: 'Gérez les inscriptions des élèves et marquez leur présence aux séances. Le taux de présence est calculé automatiquement.',
+          title: t('onboarding.tourInscriptionsTitle'),
+          description: t('onboarding.tourInscriptionsDesc'),
           icon: <Calendar className="h-8 w-8" />,
-          tip: 'Un taux de présence de 75% minimum est requis pour la certification.',
+          tip: t('onboarding.tourInscriptionsTip'),
         },
         {
-          title: '🎓 Certifications',
-          description: 'Générez des certificats PDF pour les élèves éligibles. Le système vérifie automatiquement le taux de présence requis.',
+          title: t('onboarding.tourCertificationsTitle'),
+          description: t('onboarding.tourCertificationsDesc'),
           icon: <CheckCircle2 className="h-8 w-8" />,
-          tip: 'Les certificats sont générés en PDF téléchargeable.',
+          tip: t('onboarding.tourCertificationsTip'),
         },
       ];
     }
@@ -480,22 +519,22 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
       return [
         ...commonSteps,
         {
-          title: '👤 Gestion des utilisateurs',
-          description: 'Créez, modifiez et supprimez des utilisateurs. Changez leur rôle entre Formateur et Responsable de formation.',
+          title: t('onboarding.tourUsersTitle'),
+          description: t('onboarding.tourUsersDesc'),
           icon: <Users className="h-8 w-8" />,
-          tip: 'Seul l\'administrateur peut créer des comptes et changer les rôles.',
+          tip: t('onboarding.tourUsersTip'),
         },
         {
-          title: '📊 Analytics & Statistiques',
-          description: 'Consultez des statistiques détaillées : taux de présence, inscriptions par mois, répartition des rôles et progression des formations.',
+          title: t('onboarding.tourAnalyticsTitle'),
+          description: t('onboarding.tourAnalyticsDesc'),
           icon: <BarChart3 className="h-8 w-8" />,
-          tip: 'Actualisez les données en cliquant sur le bouton Actualiser.',
+          tip: t('onboarding.tourAnalyticsTip'),
         },
         {
-          title: '📝 Journal d\'activité',
-          description: 'Suivez toutes les actions effectuées sur la plateforme : créations, modifications, suppressions. Filtrez par type, action ou méthode HTTP.',
+          title: t('onboarding.tourLogsTitle'),
+          description: t('onboarding.tourLogsDesc'),
           icon: <BookOpen className="h-8 w-8" />,
-          tip: 'Les logs sont paginés, utilisez les boutons de navigation pour voir l\'historique.',
+          tip: t('onboarding.tourLogsTip'),
         },
       ];
     }
@@ -521,9 +560,9 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
     // Voice feedback
     if (voiceEnabled) {
       if (currentQuestion < totalSteps - 1) {
-        speak(value ? 'Oui, noté.' : 'Non, noté.', 'fr-FR');
+        speak(value ? t('onboarding.ttsYesNoted') : t('onboarding.ttsNoNoted'), ttsLocale);
       } else {
-        speak(value ? 'Oui, noté. Questionnaire terminé ! Passons à la visite guidée.' : 'Non, noté. Questionnaire terminé ! Passons à la visite guidée.', 'fr-FR');
+        speak((value ? t('onboarding.ttsYesNoted') : t('onboarding.ttsNoNoted')) + ' ' + t('onboarding.ttsQuestionnaireDone'), ttsLocale);
       }
     }
 
@@ -658,10 +697,10 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
 
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
-      case 'vision': return 'Vision';
-      case 'motor': return 'Motricité';
-      case 'hearing': return 'Audition';
-      case 'cognitive': return 'Cognitif';
+      case 'vision': return t('onboarding.catVision');
+      case 'motor': return t('onboarding.catMotor');
+      case 'hearing': return t('onboarding.catHearing');
+      case 'cognitive': return t('onboarding.catCognitive');
       default: return '';
     }
   };
@@ -674,10 +713,10 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
         <div className="mb-6">
           <Progress value={progress} className="h-2" />
           <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-            <span>Bienvenue</span>
-            <span>Accessibilité</span>
-            <span>Visite guidée</span>
-            <span>Terminé</span>
+            <span>{t('onboarding.progressWelcome')}</span>
+            <span>{t('onboarding.progressAccessibility')}</span>
+            <span>{t('onboarding.progressTour')}</span>
+            <span>{t('onboarding.progressDone')}</span>
           </div>
         </div>
 
@@ -690,19 +729,19 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
               <VolumeX className="h-4 w-4 text-muted-foreground" />
             )}
             <span className="text-sm font-medium">
-              {voiceEnabled ? 'Lecture vocale activée' : 'Lecture vocale'}
+              {voiceEnabled ? t('onboarding.voiceToggleOn') : t('onboarding.voiceToggleLabel')}
             </span>
             <Switch
               checked={voiceEnabled}
               onCheckedChange={(checked) => {
                 setVoiceEnabled(checked);
                 if (checked) {
-                  speak('Lecture vocale activée. Je vais vous guider tout au long de la configuration.', 'fr-FR');
+                  speak(t('onboarding.ttsVoiceOn'), ttsLocale);
                 } else {
                   stopSpeaking();
                 }
               }}
-              aria-label="Activer ou désactiver la lecture vocale"
+              aria-label={t('onboarding.voiceToggleAria')}
             />
           </div>
         </div>
@@ -723,33 +762,58 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                     <Sparkles className="h-10 w-10 text-primary-foreground" />
                   </div>
                   <CardTitle className="text-2xl">
-                    Bienvenue, {userName} ! 🎉
+                    {tpl(t('onboarding.welcomeTitle'), { name: userName })}
                   </CardTitle>
                   <CardDescription className="text-base mt-2">
-                    Avant de commencer, nous allons personnaliser votre expérience en quelques étapes rapides.
+                    {t('onboarding.welcomeDesc')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {/* ── Language selector ── */}
+                  <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Globe className="h-5 w-5 text-primary" />
+                      <p className="font-medium text-sm">{t('onboarding.chooseLang')}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">{t('onboarding.chooseLangDesc')}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {(['fr', 'en', 'ar', 'es'] as Language[]).map((l) => (
+                        <button
+                          key={l}
+                          onClick={() => setLang(l)}
+                          className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 transition-all text-sm font-medium ${
+                            lang === l
+                              ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                              : 'border-muted hover:border-primary/40 hover:bg-muted/50 text-muted-foreground'
+                          }`}
+                        >
+                          <span className="text-lg">{LANG_FLAGS[l]}</span>
+                          <span>{LANG_LABELS[l]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                       <Accessibility className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-medium text-sm">Questionnaire d'accessibilité</p>
-                        <p className="text-xs text-muted-foreground">8 questions pour adapter la plateforme</p>
+                        <p className="font-medium text-sm">{t('onboarding.stepAccessibility')}</p>
+                        <p className="text-xs text-muted-foreground">{t('onboarding.stepAccessibilityDesc')}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                       <Rocket className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-medium text-sm">Visite guidée</p>
-                        <p className="text-xs text-muted-foreground">Découvrez les fonctionnalités clés</p>
+                        <p className="font-medium text-sm">{t('onboarding.stepTour')}</p>
+                        <p className="text-xs text-muted-foreground">{t('onboarding.stepTourDesc')}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                       <Volume2 className="h-6 w-6 text-primary flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-medium text-sm">Lecture vocale</p>
-                        <p className="text-xs text-muted-foreground">Chaque étape lue à haute voix</p>
+                        <p className="font-medium text-sm">{t('onboarding.stepVoice')}</p>
+                        <p className="text-xs text-muted-foreground">{t('onboarding.stepVoiceDesc')}</p>
                       </div>
                     </div>
                   </div>
@@ -763,10 +827,10 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                         </div>
                         <div>
                           <p className="font-medium text-sm">
-                            {voiceEnabled ? '🔊 Lecture vocale activée' : '🔇 Activer la lecture vocale ?'}
+                            {voiceEnabled ? t('onboarding.voiceEnabled') : t('onboarding.voiceDisabled')}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {voiceEnabled ? 'Chaque question et étape sera lue automatiquement' : 'Recommandé pour les utilisateurs malvoyants'}
+                            {voiceEnabled ? t('onboarding.voiceEnabledDesc') : t('onboarding.voiceDisabledDesc')}
                           </p>
                         </div>
                       </div>
@@ -775,31 +839,31 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                         onCheckedChange={(checked) => {
                           setVoiceEnabled(checked);
                           if (checked) {
-                            speak('Lecture vocale activée. Je vais vous accompagner tout au long de la configuration. Cliquez sur Commencer pour débuter.', 'fr-FR');
+                            speak(t('onboarding.ttsVoiceOnWelcome'), ttsLocale);
                           } else {
                             stopSpeaking();
                           }
                         }}
-                        aria-label="Activer la lecture vocale pour l'onboarding"
+                        aria-label={t('onboarding.voiceToggleAria')}
                       />
                     </div>
                     {voiceEnabled && (
                       <p className="text-xs text-primary/70 flex items-center gap-1.5">
                         <Mic className="h-3 w-3" />
-                        Vous pouvez répondre aux questions par la voix en disant "Oui" ou "Non", ou naviguer en disant "Suivant", "Précédent", "Commencer" ou "Terminer".
+                        {t('onboarding.voiceInstructions')}
                       </p>
                     )}
                   </div>
 
                   <div className="flex justify-center">
                     <Button size="lg" onClick={() => setPhase('questionnaire')} className="gap-2 px-8">
-                      Commencer
+                      {t('onboarding.startButton')}
                       <ChevronRight className="h-5 w-5" />
                     </Button>
                   </div>
 
                   <p className="text-center text-xs text-muted-foreground">
-                    Durée estimée : 2 minutes • Vos réponses sont sauvegardées
+                    {t('onboarding.estimatedDuration')}
                   </p>
                 </CardContent>
               </Card>
@@ -827,7 +891,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                     </span>
                   </div>
                   <CardTitle className="text-xl mt-4">
-                    {answers[currentQuestion].question}
+                    {getQuestionText(answers[currentQuestion])}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -837,20 +901,20 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                       size="lg"
                       onClick={() => handleAnswer(true)}
                       className="h-24 flex flex-col gap-2 hover:bg-primary/10 hover:border-primary transition-all text-lg"
-                      aria-label="Répondre Oui"
+                      aria-label={t('onboarding.answerYesAria')}
                     >
                       <CheckCircle2 className="h-8 w-8 text-green-500" />
-                      Oui
+                      {t('onboarding.answerYes')}
                     </Button>
                     <Button
                       variant="outline"
                       size="lg"
                       onClick={() => handleAnswer(false)}
                       className="h-24 flex flex-col gap-2 hover:bg-muted transition-all text-lg"
-                      aria-label="Répondre Non"
+                      aria-label={t('onboarding.answerNoAria')}
                     >
                       <span className="h-8 w-8 rounded-full border-2 border-muted-foreground flex items-center justify-center text-muted-foreground text-xl">✕</span>
-                      Non
+                      {t('onboarding.answerNo')}
                     </Button>
                   </div>
 
@@ -870,7 +934,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                           ? 'bg-red-500 text-white scale-110 ring-4 ring-red-500/30 animate-pulse'
                           : 'bg-primary text-primary-foreground hover:scale-110 hover:shadow-xl ring-2 ring-primary/20'
                       }`}
-                      aria-label={micListening ? 'Arrêter l\'écoute vocale' : 'Répondre par la voix'}
+                      aria-label={micListening ? t('onboarding.micStopAria') : t('onboarding.micStartAria')}
                     >
                       {micListening ? (
                         <MicOff className="h-7 w-7" />
@@ -881,17 +945,17 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                     <div className="text-center">
                       {micListening ? (
                         <>
-                          <p className="text-sm font-medium text-primary animate-pulse">🎙️ J'écoute... dites Oui ou Non</p>
+                          <p className="text-sm font-medium text-primary animate-pulse">{t('onboarding.micListening')}</p>
                           {micTranscript && (
                             <p className="text-xs text-muted-foreground mt-1">
-                              Entendu : <span className="font-medium text-foreground">"{micTranscript}"</span>
+                              {t('onboarding.micHeard')} <span className="font-medium text-foreground">"{micTranscript}"</span>
                             </p>
                           )}
                         </>
                       ) : (
                         <p className="text-xs text-muted-foreground">
                           <Mic className="h-3 w-3 inline mr-1" />
-                          Appuyez pour répondre à la voix
+                          {t('onboarding.micPrompt')}
                         </p>
                       )}
                     </div>
@@ -904,14 +968,14 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                         stopMicListening();
                         setCurrentQuestion(currentQuestion - 1);
                         if (voiceEnabled) {
-                          speak('Question précédente.', 'fr-FR');
+                          speak(t('onboarding.ttsPrevQuestion'), ttsLocale);
                         }
                       }}
                       className="gap-2"
-                      aria-label="Retourner à la question précédente"
+                      aria-label={t('onboarding.prevQuestionAria')}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Question précédente
+                      {t('onboarding.prevQuestion')}
                     </Button>
                   )}
                 </CardContent>
@@ -932,7 +996,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Visite guidée
+                      {t('onboarding.tourLabel')}
                     </span>
                     <span className="text-sm text-muted-foreground font-medium">
                       {currentTourStep + 1} / {tourSteps.length}
@@ -953,7 +1017,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                     {tourSteps[currentTourStep].tip && (
                       <div className="inline-flex items-start gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 px-4 py-3 rounded-lg text-sm text-left max-w-lg">
                         <Sparkles className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                        <span><strong>Astuce :</strong> {tourSteps[currentTourStep].tip}</span>
+                        <span><strong>{t('onboarding.tourTip')}</strong> {tourSteps[currentTourStep].tip}</span>
                       </div>
                     )}
                   </div>
@@ -968,13 +1032,13 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                           setPhase('questionnaire');
                           setCurrentQuestion(totalSteps - 1);
                         }
-                        if (voiceEnabled) speak('Étape précédente.', 'fr-FR');
+                        if (voiceEnabled) speak(t('onboarding.ttsPrevStep'), ttsLocale);
                       }}
                       className="gap-2"
-                      aria-label="Étape précédente"
+                      aria-label={t('onboarding.tourPrevAria')}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Précédent
+                      {t('onboarding.tourPrev')}
                     </Button>
 
                     {currentTourStep < tourSteps.length - 1 ? (
@@ -983,19 +1047,19 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                           setCurrentTourStep(currentTourStep + 1);
                         }}
                         className="gap-2"
-                        aria-label="Étape suivante"
+                        aria-label={t('onboarding.tourNextAria')}
                       >
-                        Suivant
+                        {t('onboarding.tourNext')}
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     ) : (
                       <Button
                         onClick={handleComplete}
                         className="gap-2 bg-green-600 hover:bg-green-700"
-                        aria-label="Terminer la configuration"
+                        aria-label={t('onboarding.tourFinishAria')}
                       >
                         <CheckCircle2 className="h-4 w-4" />
-                        Terminer
+                        {t('onboarding.tourFinish')}
                       </Button>
                     )}
                   </div>
@@ -1039,12 +1103,12 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                       <CheckCircle2 className="h-12 w-12 text-green-500" />
                     </div>
                   </motion.div>
-                  <h2 className="text-2xl font-bold">Vous êtes prêt ! 🚀</h2>
+                  <h2 className="text-2xl font-bold">{t('onboarding.completeTitle')}</h2>
                   <p className="text-muted-foreground text-lg max-w-md mx-auto">
-                    Vos préférences ont été sauvegardées. La plateforme est maintenant adaptée à vos besoins.
+                    {t('onboarding.completeDesc')}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Redirection automatique...
+                    {t('onboarding.completeRedirect')}
                   </p>
                 </CardContent>
               </Card>

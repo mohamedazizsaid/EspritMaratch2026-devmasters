@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 
 interface GoogleCallbackProps {
-  onLogin: (email: string, role: 'student' | 'instructor' | 'manager' | 'admin') => void;
+  onLogin: (email: string, role: 'Formateurs' | 'responsableformation' | 'Admin') => void;
 }
 
 export function GoogleCallback({ onLogin }: GoogleCallbackProps) {

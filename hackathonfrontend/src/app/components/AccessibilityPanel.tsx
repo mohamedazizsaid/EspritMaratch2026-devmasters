@@ -25,8 +25,11 @@ import {
   Type,
   Contrast,
   Mic,
+  Crosshair,
+  Loader2,
 } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
+import { useEyeTracking } from '../../components/EyeTrackingContext';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Theme = 'light' | 'dark' | 'system';
@@ -532,6 +535,9 @@ export function AccessibilityPanel({
             </div>
           </Section>
 
+          {/* ───── Eye Tracking (Head Tracking) ───── */}
+          <EyeTrackingSection announce={announce} t={t} />
+
           {/* ───── Reset ───── */}
           <div className="pt-2">
             <Button variant="outline" className="w-full gap-2"
@@ -582,5 +588,66 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
       </div>
       {children}
     </div>
+  );
+}
+
+// ─── Eye Tracking Section (uses context) ─────────────────────────────────────
+function EyeTrackingSection({ announce, t }: { announce: (msg: string) => void; t: (key: string) => string }) {
+  const eyeTracking = useEyeTracking() as {
+    isEnabled: boolean;
+    setIsEnabled: (v: boolean) => void;
+    isLoading: boolean;
+    error: string | null;
+  };
+
+  const { isEnabled, setIsEnabled, isLoading, error } = eyeTracking;
+
+  return (
+    <Section icon={<Crosshair className="h-4 w-4" />} title={t('a11y.eyeTracking')}>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between rounded-lg border border-border p-3">
+          <div className="flex items-center gap-3">
+            {isLoading ? (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : isEnabled ? (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                <Crosshair className="h-4 w-4" />
+              </div>
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Crosshair className="h-4 w-4" />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium">
+                {isLoading ? t('a11y.eyeTrackingLoading') : isEnabled ? t('a11y.eyeTrackingEnabled') : t('a11y.eyeTrackingDisabled')}
+              </p>
+              <p className="text-xs text-muted-foreground">{t('a11y.eyeTrackingDesc')}</p>
+            </div>
+          </div>
+          <Switch
+            checked={isEnabled}
+            onCheckedChange={(checked) => {
+              setIsEnabled(checked);
+              announce(checked ? t('a11y.eyeTrackingActivated') : t('a11y.eyeTrackingDeactivated'));
+            }}
+            disabled={isLoading}
+            aria-label={t('a11y.eyeTracking')}
+          />
+        </div>
+        {isEnabled && (
+          <p className="text-xs text-muted-foreground bg-primary/5 p-2 rounded-md">
+            💡 {t('a11y.eyeTrackingTip')}
+          </p>
+        )}
+        {error && (
+          <p className="text-xs text-destructive bg-destructive/5 p-2 rounded-md">
+            ⚠️ {error}
+          </p>
+        )}
+      </div>
+    </Section>
   );
 }

@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { authService } from '../../services/api';
 
 interface LoginProps {
-  onLogin: (email: string, role: 'student' | 'instructor' | 'manager' | 'admin') => void;
+  onLogin: (email: string, role: 'Formateurs' | 'responsableformation' | 'Admin') => void;
 }
 
 export function Login({ onLogin }: LoginProps) {

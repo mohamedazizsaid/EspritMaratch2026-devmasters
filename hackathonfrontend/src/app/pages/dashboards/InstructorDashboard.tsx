@@ -23,11 +23,21 @@ import {
   Loader2,
   Sparkles,
   Trash2,
+  Volume2,
+  VolumeX,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { chatbotService } from '../../../services/chatbot.service';
 import { useTranslation } from '../../lib/i18n';
+import type { Language } from '../../lib/i18n';
 import type { ChatHistory } from '../../lib/types';
+
+// ─── TTS / STT helpers for chatbot ──────────────────────────────
+const CHAT_TTS_LOCALES: Record<Language, string> = {
+  fr: 'fr-FR', en: 'en-US', ar: 'ar-SA', es: 'es-ES',
+};
 
 interface Formation {
   id: any;
@@ -52,12 +62,12 @@ interface Eleve {
   date_inscription?: string | Date;
   statut?: string;
   progress?: number;
-  grade?: string;
 }
 
 export function InstructorDashboard() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const ttsLocale = CHAT_TTS_LOCALES[lang];
   const [searchQuery, setSearchQuery] = useState('');
   const [formations, setFormations] = useState<Formation[]>([]);
   const [students, setStudents] = useState<Eleve[]>([]);
@@ -79,6 +89,75 @@ export function InstructorDashboard() {
   const [chatInitialized, setChatInitialized] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // ─── Audio accessibility: TTS (read response) + STT (dictation) ─────
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [dictating, setDictating] = useState(false);
+  const dictationRef = useRef<any>(null);
+
+  const handleReadAloud = useCallback((text: string, msgId: string) => {
+    if (!('speechSynthesis' in window)) {
+      toast.error(t('chatbot.ttsNotSupported'));
+      return;
+    }
+    // If already reading this message, stop
+    if (speakingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = ttsLocale;
+    u.rate = 0.95;
+    u.pitch = 1;
+    u.onend = () => setSpeakingMsgId(null);
+    u.onerror = () => setSpeakingMsgId(null);
+    setSpeakingMsgId(msgId);
+    window.speechSynthesis.speak(u);
+  }, [speakingMsgId, ttsLocale, t]);
+
+  const handleStartDictation = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error(t('chatbot.sttNotSupported'));
+      return;
+    }
+    if (dictationRef.current) {
+      dictationRef.current.stop();
+      dictationRef.current = null;
+      setDictating(false);
+      return;
+    }
+    const recognition = new SR();
+    recognition.lang = ttsLocale;
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.onstart = () => setDictating(true);
+    recognition.onresult = (event: any) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          transcript += event.results[i][0].transcript;
+        }
+      }
+      if (transcript) {
+        setChatMessage(prev => prev ? prev + ' ' + transcript : transcript);
+      }
+    };
+    recognition.onerror = () => { setDictating(false); dictationRef.current = null; };
+    recognition.onend = () => { setDictating(false); dictationRef.current = null; };
+    dictationRef.current = recognition;
+    recognition.start();
+  }, [ttsLocale, t]);
+
+  // Cleanup TTS/STT on unmount
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (dictationRef.current) dictationRef.current.stop();
+    };
+  }, []);
   useEffect(() => {
     // Récupérer l'ID du formateur connecté depuis localStorage
     const userData = localStorage.getItem('userid');
@@ -146,8 +225,7 @@ export function InstructorDashboard() {
               adresse: e.adresse,
               date_inscription: e.date_inscription,
               statut: e.statut,
-              progress: e.progress || 0,
-              grade: e.grade || 'N/A',
+              progress: 0,
             }))
           : [];
         
@@ -162,6 +240,33 @@ export function InstructorDashboard() {
     
     fetchStudents();
   }, [formateurId]);
+
+  // Fetch presence-based progression for students
+  useEffect(() => {
+    if (!formateurId || students.length === 0) return;
+
+    const fetchProgress = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:3000/api/formation/formateur/${formateurId}/student-progress`
+        );
+        if (!response.ok) return;
+        const progressData: Record<string, number> = await response.json();
+        
+        setStudents(prev =>
+          prev.map(s => ({
+            ...s,
+            progress: progressData[s._id || s.id || ''] ?? s.progress ?? 0,
+          }))
+        );
+      } catch (error) {
+        console.error('Erreur lors du chargement de la progression:', error);
+      }
+    };
+
+    fetchProgress();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formateurId, students.length]);
 
   useEffect(() => {
     if (!formateurId) return;
@@ -472,7 +577,6 @@ export function InstructorDashboard() {
                         <th scope="col" className="px-6 py-4 text-left font-medium">{t('common.student')}</th>
                         <th scope="col" className="px-6 py-4 text-left font-medium">{t('common.email')}</th>
                         <th scope="col" className="px-6 py-4 text-left font-medium">{t('instructor.progression')}</th>
-                        <th scope="col" className="px-6 py-4 text-left font-medium">{t('instructor.grade')}</th>
                         <th scope="col" className="px-6 py-4 text-left font-medium">
                           <span className="sr-only">Actions</span>
                         </th>
@@ -497,9 +601,6 @@ export function InstructorDashboard() {
                               <Progress value={student.progress || 0} className="w-20" aria-label={`Progression: ${student.progress || 0}%`} />
                               <span className="text-sm">{student.progress || 0}%</span>
                             </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <Badge variant="outline">{student.grade || 'N/A'}</Badge>
                           </td>
                           <td className="px-6 py-4">
                             <Button 
@@ -792,11 +893,32 @@ export function InstructorDashboard() {
                             {/* AI response */}
                             <div className="flex justify-start" role="article" aria-label={t('chatbot.assistantResponse')}>
                               <div className="bg-muted/60 border border-border/50 rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%] shadow-sm">
-                                <div className="flex items-center gap-1.5 mb-2">
-                                  <div className="h-5 w-5 rounded-md bg-primary/10 flex items-center justify-center">
-                                    <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" />
+                                <div className="flex items-center justify-between gap-1.5 mb-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="h-5 w-5 rounded-md bg-primary/10 flex items-center justify-center">
+                                      <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" />
+                                    </div>
+                                    <span className="text-xs font-semibold text-primary">Gemini</span>
                                   </div>
-                                  <span className="text-xs font-semibold text-primary">Gemini</span>
+                                  <button
+                                    onClick={() => handleReadAloud(ch.assistantResponse, ch._id)}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all ${
+                                      speakingMsgId === ch._id
+                                        ? 'bg-primary/15 text-primary animate-pulse'
+                                        : 'hover:bg-primary/10 text-muted-foreground hover:text-primary'
+                                    }`}
+                                    aria-label={speakingMsgId === ch._id ? t('chatbot.stopListening') : t('chatbot.listenResponse')}
+                                    title={speakingMsgId === ch._id ? t('chatbot.stopListening') : t('chatbot.listenResponse')}
+                                  >
+                                    {speakingMsgId === ch._id ? (
+                                      <VolumeX className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <Volume2 className="h-3.5 w-3.5" />
+                                    )}
+                                    <span className="hidden sm:inline">
+                                      {speakingMsgId === ch._id ? t('chatbot.stopListening') : t('chatbot.listenResponse')}
+                                    </span>
+                                  </button>
                                 </div>
                                 <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">{ch.assistantResponse}</p>
                               </div>
@@ -833,7 +955,7 @@ export function InstructorDashboard() {
                         id="chat-input"
                         value={chatMessage}
                         onChange={(e) => setChatMessage(e.target.value)}
-                        placeholder={t('chatbot.placeholder')}
+                        placeholder={dictating ? t('chatbot.micListening') : t('chatbot.placeholder')}
                         rows={2}
                         className="flex-1 resize-none text-sm transition-all focus:ring-2 focus:ring-primary/30"
                         onKeyDown={(e) => {
@@ -845,6 +967,24 @@ export function InstructorDashboard() {
                         disabled={chatSending}
                         aria-label={t('chatbot.writeMessage')}
                       />
+                      {/* Mic dictation button */}
+                      <Button
+                        variant={dictating ? 'default' : 'outline'}
+                        onClick={handleStartDictation}
+                        className={`self-end h-10 w-10 p-0 rounded-xl transition-all duration-200 ${
+                          dictating
+                            ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse ring-2 ring-red-500/30'
+                            : 'hover:shadow-md hover:scale-105'
+                        }`}
+                        aria-label={dictating ? t('chatbot.stopDictation') : t('chatbot.speakMessage')}
+                        title={dictating ? t('chatbot.stopDictation') : t('chatbot.speakMessage')}
+                      >
+                        {dictating ? (
+                          <MicOff className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <Mic className="h-4 w-4" aria-hidden="true" />
+                        )}
+                      </Button>
                       <Button
                         onClick={handleSendChat}
                         disabled={chatSending || !chatMessage.trim()}

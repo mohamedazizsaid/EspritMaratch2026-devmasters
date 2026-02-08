@@ -4,7 +4,6 @@ import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { Login } from './pages/Login';
-import { Register } from './pages/Register';
 import { InstructorDashboard } from './pages/dashboards/InstructorDashboard';
 import { FormationNiveaux } from './pages/dashboards/FormationNiveaux';
 import { NiveauSeances } from './pages/dashboards/NiveauSeances';
@@ -15,8 +14,8 @@ import { GoogleCallback } from './pages/GoogleCallback';
 
 interface RouterProps {
   isAuthenticated: boolean;
-  userRole?: 'student' | 'instructor' | 'manager' | 'admin';
-  onLogin: (email: string, role: 'student' | 'instructor' | 'manager' | 'admin') => void;
+  userRole?: 'Formateurs' | 'responsableformation' | 'Admin';
+  onLogin: (email: string, role: 'Formateurs' | 'responsableformation' | 'Admin') => void;
   onRegister: (email: string) => void;
   onLogout: () => void;
 }

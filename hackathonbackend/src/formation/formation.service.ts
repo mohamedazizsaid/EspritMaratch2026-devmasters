@@ -640,5 +640,117 @@ export class FormationService {
             throw new BadRequestException(`Impossible de vérifier les retards: ${error.message}`);
         }
     }
+
+    /**
+     * Calculates student progression based on presence (attendance) for a given formateur.
+     * Progression = (seances attended as present) / (total seances in enrolled formations) × 100
+     */
+    async getStudentProgressByFormateur(id_formateur: string): Promise<Record<string, number>> {
+        if (!Types.ObjectId.isValid(id_formateur)) {
+            return {};
+        }
+
+        // 1. Get all formations for this formateur
+        const formations = await this.formationModel
+            .find({ id_formateur: new Types.ObjectId(id_formateur) })
+            .exec();
+
+        if (formations.length === 0) return {};
+
+        const formationIds = formations.map(f => f._id);
+
+        // 2. Get all niveaux for these formations
+        const niveaux = await this.niveauModel
+            .find({ id_formation: { $in: formationIds } })
+            .exec();
+
+        if (niveaux.length === 0) return {};
+
+        // 3. Build a map: formationId -> total seances count
+        const niveauIds = niveaux.map(n => n._id);
+        const seances = await this.seanceModel
+            .find({ id_niveau: { $in: niveauIds } })
+            .exec();
+
+        // Map niveauId -> formationId
+        const niveauToFormation: Record<string, string> = {};
+        for (const n of niveaux) {
+            niveauToFormation[n._id.toString()] = n.id_formation.toString();
+        }
+
+        // Map formationId -> total seances
+        const formationSeanceCount: Record<string, number> = {};
+        // Map seanceId -> formationId
+        const seanceToFormation: Record<string, string> = {};
+        for (const s of seances) {
+            const fId = niveauToFormation[s.id_niveau.toString()];
+            if (fId) {
+                formationSeanceCount[fId] = (formationSeanceCount[fId] || 0) + 1;
+                seanceToFormation[s._id.toString()] = fId;
+            }
+        }
+
+        // 4. Get all inscriptions for these formations
+        const inscriptions = await this.inscriptionModel
+            .find({
+                $or: [
+                    { id_formation: { $in: formationIds } },
+                    { id_formation: { $in: formationIds.map(id => id.toString()) } },
+                ],
+            })
+            .populate('id_eleve')
+            .exec();
+
+        if (inscriptions.length === 0) return {};
+
+        // Map inscriptionId -> { eleveId, formationId }
+        const inscriptionMap: Record<string, { eleveId: string; formationId: string }> = {};
+        // Track per student: which formations they're in -> for total seances
+        const studentFormations: Record<string, Set<string>> = {};
+
+        for (const insc of inscriptions) {
+            const eleveId = (insc.id_eleve as any)?._id?.toString() || insc.id_eleve?.toString();
+            const fId = insc.id_formation?.toString();
+            if (eleveId && fId) {
+                inscriptionMap[insc._id.toString()] = { eleveId, formationId: fId };
+                if (!studentFormations[eleveId]) {
+                    studentFormations[eleveId] = new Set();
+                }
+                studentFormations[eleveId].add(fId);
+            }
+        }
+
+        // 5. Get all presences for all seances
+        const seanceIds = seances.map(s => s._id);
+        const presences = await this.presenceModel
+            .find({ id_seance: { $in: seanceIds } })
+            .exec();
+
+        // 6. Count presences (present=true) per student
+        const studentPresenceCount: Record<string, number> = {};
+        for (const p of presences) {
+            if (!p.present) continue;
+            const inscId = p.id_inscription?.toString();
+            const info = inscriptionMap[inscId];
+            if (info) {
+                studentPresenceCount[info.eleveId] = (studentPresenceCount[info.eleveId] || 0) + 1;
+            }
+        }
+
+        // 7. Calculate progression per student
+        const result: Record<string, number> = {};
+        for (const [eleveId, formationSet] of Object.entries(studentFormations)) {
+            let totalSeances = 0;
+            for (const fId of formationSet) {
+                totalSeances += formationSeanceCount[fId] || 0;
+            }
+            const attended = studentPresenceCount[eleveId] || 0;
+            result[eleveId] = totalSeances > 0
+                ? Math.round((attended / totalSeances) * 100)
+                : 0;
+        }
+
+        return result;
+    }
 }
 

@@ -1,64 +1,67 @@
 import { Users, Target, Lightbulb, Award } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
+import { useTranslation } from '../lib/i18n';
 
 export function About() {
+  const { t } = useTranslation();
+
   const values = [
     {
       icon: Target,
-      title: 'Excellence pédagogique',
-      description: 'Nous nous engageons à fournir des formations de la plus haute qualité avec des contenus régulièrement mis à jour.',
+      title: t('aboutPage.value1Title'),
+      description: t('aboutPage.value1Desc'),
     },
     {
       icon: Users,
-      title: 'Accessibilité pour tous',
-      description: 'Notre plateforme est conçue pour être accessible à tous, quel que soit le niveau ou le handicap.',
+      title: t('aboutPage.value2Title'),
+      description: t('aboutPage.value2Desc'),
     },
     {
       icon: Lightbulb,
-      title: 'Innovation continue',
-      description: 'Nous adoptons les dernières technologies et méthodes pédagogiques pour optimiser l\'apprentissage.',
+      title: t('aboutPage.value3Title'),
+      description: t('aboutPage.value3Desc'),
     },
     {
       icon: Award,
-      title: 'Réussite des étudiants',
-      description: 'Notre priorité est votre succès. Nous vous accompagnons jusqu\'à l\'atteinte de vos objectifs.',
+      title: t('aboutPage.value4Title'),
+      description: t('aboutPage.value4Desc'),
     },
   ];
 
   const team = [
     {
-      name: 'Dr. Marie Dupont',
-      role: 'Directrice Pédagogique',
+      name: t('aboutPage.team1Name'),
+      role: t('aboutPage.team1Role'),
       image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400',
-      bio: '15 ans d\'expérience dans l\'enseignement supérieur et le e-learning.',
+      bio: t('aboutPage.team1Bio'),
     },
     {
-      name: 'Jean-Pierre Martin',
-      role: 'Directeur Technique',
+      name: t('aboutPage.team2Name'),
+      role: t('aboutPage.team2Role'),
       image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-      bio: 'Expert en développement de plateformes éducatives accessibles.',
+      bio: t('aboutPage.team2Bio'),
     },
     {
-      name: 'Sophie Bernard',
-      role: 'Responsable Qualité',
+      name: t('aboutPage.team3Name'),
+      role: t('aboutPage.team3Role'),
       image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400',
-      bio: 'Spécialiste en accessibilité numérique et normes WCAG.',
+      bio: t('aboutPage.team3Bio'),
     },
     {
-      name: 'Thomas Rousseau',
-      role: 'Responsable des Formateurs',
+      name: t('aboutPage.team4Name'),
+      role: t('aboutPage.team4Role'),
       image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400',
-      bio: 'Coordination et accompagnement de notre équipe de 200+ formateurs.',
+      bio: t('aboutPage.team4Bio'),
     },
   ];
 
   const milestones = [
-    { year: '2018', event: 'Création de FormaPro avec 10 formations' },
-    { year: '2019', event: '5,000 étudiants et certification WCAG 2.1 AA' },
-    { year: '2020', event: 'Lancement de 50+ nouvelles formations' },
-    { year: '2022', event: '15,000 étudiants diplômés' },
-    { year: '2024', event: '25,000+ étudiants actifs et 150+ formations' },
+    { year: '2018', event: t('aboutPage.milestone1') },
+    { year: '2019', event: t('aboutPage.milestone2') },
+    { year: '2020', event: t('aboutPage.milestone3') },
+    { year: '2022', event: t('aboutPage.milestone4') },
+    { year: '2024', event: t('aboutPage.milestone5') },
   ];
 
   return (
@@ -67,10 +70,9 @@ export function About() {
       <section className="bg-gradient-to-br from-primary/5 via-background to-secondary/20 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <h1 className="mb-6">À propos de FormaPro</h1>
+            <h1 className="mb-6">{t('aboutPage.title')}</h1>
             <p className="text-xl text-muted-foreground">
-              Depuis 2018, nous transformons l'éducation en ligne en rendant l'apprentissage 
-              accessible, engageant et efficace pour tous.
+              {t('aboutPage.subtitle')}
             </p>
           </div>
         </div>
@@ -81,25 +83,21 @@ export function About() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 items-center">
             <div>
-              <h2 className="mb-6">Notre mission</h2>
+              <h2 className="mb-6">{t('aboutPage.missionTitle')}</h2>
               <p className="text-lg text-foreground mb-4">
-                Chez FormaPro, nous croyons que l'éducation de qualité doit être accessible à tous, 
-                partout et à tout moment. Notre mission est de démocratiser l'accès aux compétences 
-                professionnelles à travers une plateforme d'apprentissage en ligne innovante et inclusive.
+                {t('aboutPage.missionP1')}
               </p>
               <p className="text-lg text-foreground mb-4">
-                Nous collaborons avec des experts reconnus pour créer des formations pratiques 
-                et certifiantes qui répondent aux besoins réels du marché du travail.
+                {t('aboutPage.missionP2')}
               </p>
               <p className="text-lg text-foreground">
-                Notre engagement envers l'accessibilité WCAG 2.1 AA garantit que chaque apprenant, 
-                quelles que soient ses capacités, peut profiter pleinement de nos formations.
+                {t('aboutPage.missionP3')}
               </p>
             </div>
             <div>
               <img
                 src="https://images.unsplash.com/photo-1758518732175-5d608ba3abdf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHRlYW0lMjBwcm9mZXNzaW9uYWx8ZW58MXx8fHwxNzcwMzg3NjQyfDA&ixlib=rb-4.1.0&q=80&w=1080"
-                alt="Équipe de professionnels collaborant"
+                alt={t('aboutPage.missionImgAlt')}
                 className="rounded-lg shadow-lg"
               />
             </div>
@@ -111,9 +109,9 @@ export function About() {
       <section className="py-20 bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
-            <h2 className="mb-4">Nos valeurs</h2>
+            <h2 className="mb-4">{t('aboutPage.valuesTitle')}</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Ces principes guident chacune de nos décisions et actions au quotidien.
+              {t('aboutPage.valuesSubtitle')}
             </p>
           </div>
 
@@ -137,9 +135,9 @@ export function About() {
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
-            <h2 className="mb-4">Notre équipe</h2>
+            <h2 className="mb-4">{t('aboutPage.teamTitle')}</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Des experts passionnés dédiés à votre réussite.
+              {t('aboutPage.teamSubtitle')}
             </p>
           </div>
 
@@ -170,9 +168,9 @@ export function About() {
       <section className="py-20 bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
-            <h2 className="mb-4">Notre parcours</h2>
+            <h2 className="mb-4">{t('aboutPage.timelineTitle')}</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Une croissance constante depuis notre création.
+              {t('aboutPage.timelineSubtitle')}
             </p>
           </div>
 
@@ -202,23 +200,23 @@ export function About() {
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-primary px-8 py-16 text-center text-primary-foreground">
-            <h2 className="mb-12 text-primary-foreground">FormaPro en chiffres</h2>
+            <h2 className="mb-12 text-primary-foreground">{t('aboutPage.statsTitle')}</h2>
             <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
               <div>
                 <p className="text-5xl font-bold mb-2">25,000+</p>
-                <p className="text-primary-foreground/90">Étudiants actifs</p>
+                <p className="text-primary-foreground/90">{t('aboutPage.statsStudents')}</p>
               </div>
               <div>
                 <p className="text-5xl font-bold mb-2">150+</p>
-                <p className="text-primary-foreground/90">Formations</p>
+                <p className="text-primary-foreground/90">{t('aboutPage.statsFormations')}</p>
               </div>
               <div>
                 <p className="text-5xl font-bold mb-2">200+</p>
-                <p className="text-primary-foreground/90">Formateurs experts</p>
+                <p className="text-primary-foreground/90">{t('aboutPage.statsInstructors')}</p>
               </div>
               <div>
                 <p className="text-5xl font-bold mb-2">95%</p>
-                <p className="text-primary-foreground/90">Satisfaction</p>
+                <p className="text-primary-foreground/90">{t('aboutPage.statsSatisfaction')}</p>
               </div>
             </div>
           </div>

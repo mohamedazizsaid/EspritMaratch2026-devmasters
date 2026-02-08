@@ -6,11 +6,12 @@ import { Toaster } from './components/ui/sonner';
 import { AccessibilityPanel, AccessibilityTrigger } from './components/AccessibilityPanel';
 import { TabFlowIndicator } from './components/TabFlowIndicator';
 import { VoiceAssistant } from './components/VoiceAssistant';
+import { EyeTrackingProvider } from '../components/EyeTrackingContext';
 import { useTranslation } from './lib/i18n';
 
 interface RootProps {
   isAuthenticated: boolean;
-  userRole?: 'student' | 'instructor' | 'manager' | 'admin';
+  userRole?: 'Formateurs' | 'responsableformation' | 'Admin';
   onLogout: () => void;
 }
 
@@ -28,6 +29,7 @@ export function Root({ isAuthenticated, userRole, onLogout }: RootProps) {
   })();
 
   return (
+    <EyeTrackingProvider>
     <div className="flex min-h-screen flex-col">
       {/* Tab flow navigation indicator (shows on keyboard nav) */}
       <TabFlowIndicator />
@@ -50,5 +52,6 @@ export function Root({ isAuthenticated, userRole, onLogout }: RootProps) {
       <AccessibilityTrigger onClick={() => setA11yOpen(true)} voiceActive={voiceActive} />
       <AccessibilityPanel open={a11yOpen} onOpenChange={setA11yOpen} side="right" />
     </div>
+    </EyeTrackingProvider>
   );
 }

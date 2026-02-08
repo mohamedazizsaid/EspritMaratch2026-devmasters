@@ -6,8 +6,10 @@ import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '../lib/i18n';
 
 export function Contact() {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,23 +24,23 @@ export function Contact() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Le nom est requis';
+      newErrors.name = t('contactPage.nameRequired');
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = 'L\'email est requis';
+      newErrors.email = t('contactPage.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Format d\'email invalide';
+      newErrors.email = t('contactPage.emailInvalid');
     }
 
     if (!formData.subject.trim()) {
-      newErrors.subject = 'Le sujet est requis';
+      newErrors.subject = t('contactPage.subjectRequired');
     }
 
     if (!formData.message.trim()) {
-      newErrors.message = 'Le message est requis';
+      newErrors.message = t('contactPage.messageRequired');
     } else if (formData.message.length < 10) {
-      newErrors.message = 'Le message doit contenir au moins 10 caractères';
+      newErrors.message = t('contactPage.messageMinLength');
     }
 
     setErrors(newErrors);
@@ -51,7 +53,7 @@ export function Contact() {
     if (validateForm()) {
       // Simulation d'envoi
       console.log('Form submitted:', formData);
-      toast.success('Message envoyé avec succès ! Nous vous répondrons sous 24-48h.');
+      toast.success(t('contactPage.successMessage'));
       
       // Reset form
       setFormData({
@@ -63,7 +65,7 @@ export function Contact() {
       });
       setErrors({});
     } else {
-      toast.error('Veuillez corriger les erreurs dans le formulaire.');
+      toast.error(t('contactPage.errorMessage'));
     }
   };
 
@@ -78,20 +80,20 @@ export function Contact() {
   const contactInfo = [
     {
       icon: Mail,
-      label: 'Email',
+      label: t('contactPage.emailLabel'),
       value: 'contact@formapro.tn',
       href: 'mailto:contact@formapro.tn',
     },
     {
       icon: Phone,
-      label: 'Téléphone',
+      label: t('contactPage.phoneLabel'),
       value: '+216 72 123 456',
       href: 'tel:+21672123456',
     },
     {
       icon: MapPin,
-      label: 'Adresse',
-      value: 'Ben Arous, Tunisie',
+      label: t('contactPage.addressLabel'),
+      value: t('contactPage.addressValue'),
       href: null,
     },
   ];
@@ -102,9 +104,9 @@ export function Contact() {
       <section className="bg-gradient-to-br from-primary/5 via-background to-secondary/20 py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <h1 className="mb-6">Contactez-nous</h1>
+            <h1 className="mb-6">{t('contactPage.title')}</h1>
             <p className="text-xl text-muted-foreground">
-              Une question ? Un projet de formation ? Notre équipe à Ben Arous est là pour vous accompagner.
+              {t('contactPage.subtitle')}
             </p>
           </div>
         </div>
@@ -118,9 +120,9 @@ export function Contact() {
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Envoyez-nous un message</CardTitle>
+                  <CardTitle>{t('contactPage.formTitle')}</CardTitle>
                   <CardDescription>
-                    Remplissez le formulaire ci-dessous et nous vous répondrons dans les plus brefs délais.
+                    {t('contactPage.formSubtitle')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -128,7 +130,7 @@ export function Contact() {
                     {/* Name */}
                     <div className="space-y-2">
                       <Label htmlFor="name">
-                        Nom complet <span className="text-destructive" aria-label="requis">*</span>
+                        {t('contactPage.fullName')} <span className="text-destructive" aria-label={t('contactPage.required')}>*</span>
                       </Label>
                       <Input
                         id="name"
@@ -139,7 +141,7 @@ export function Contact() {
                         aria-invalid={!!errors.name}
                         aria-describedby={errors.name ? 'name-error' : undefined}
                         className={errors.name ? 'border-destructive' : ''}
-                        placeholder="Jean Dupont"
+                        placeholder={t('contactPage.namePlaceholder')}
                       />
                       {errors.name && (
                         <p id="name-error" className="text-sm text-destructive" role="alert">
@@ -151,7 +153,7 @@ export function Contact() {
                     {/* Email */}
                     <div className="space-y-2">
                       <Label htmlFor="email">
-                        Email <span className="text-destructive" aria-label="requis">*</span>
+                        {t('contactPage.email')} <span className="text-destructive" aria-label={t('contactPage.required')}>*</span>
                       </Label>
                       <Input
                         id="email"
@@ -162,7 +164,7 @@ export function Contact() {
                         aria-invalid={!!errors.email}
                         aria-describedby={errors.email ? 'email-error' : undefined}
                         className={errors.email ? 'border-destructive' : ''}
-                        placeholder="jean.dupont@example.com"
+                        placeholder={t('contactPage.emailPlaceholder')}
                       />
                       {errors.email && (
                         <p id="email-error" className="text-sm text-destructive" role="alert">
@@ -173,20 +175,20 @@ export function Contact() {
 
                     {/* Phone (optional) */}
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Téléphone (optionnel)</Label>
+                      <Label htmlFor="phone">{t('contactPage.phone')}</Label>
                       <Input
                         id="phone"
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => handleChange('phone', e.target.value)}
-                        placeholder="+33 6 12 34 56 78"
+                        placeholder={t('contactPage.phonePlaceholder')}
                       />
                     </div>
 
                     {/* Subject */}
                     <div className="space-y-2">
                       <Label htmlFor="subject">
-                        Sujet <span className="text-destructive" aria-label="requis">*</span>
+                        {t('contactPage.subject')} <span className="text-destructive" aria-label={t('contactPage.required')}>*</span>
                       </Label>
                       <Input
                         id="subject"
@@ -197,7 +199,7 @@ export function Contact() {
                         aria-invalid={!!errors.subject}
                         aria-describedby={errors.subject ? 'subject-error' : undefined}
                         className={errors.subject ? 'border-destructive' : ''}
-                        placeholder="Demande d'information sur les formations"
+                        placeholder={t('contactPage.subjectPlaceholder')}
                       />
                       {errors.subject && (
                         <p id="subject-error" className="text-sm text-destructive" role="alert">
@@ -209,7 +211,7 @@ export function Contact() {
                     {/* Message */}
                     <div className="space-y-2">
                       <Label htmlFor="message">
-                        Message <span className="text-destructive" aria-label="requis">*</span>
+                        {t('contactPage.message')} <span className="text-destructive" aria-label={t('contactPage.required')}>*</span>
                       </Label>
                       <Textarea
                         id="message"
@@ -220,7 +222,7 @@ export function Contact() {
                         aria-describedby={errors.message ? 'message-error' : undefined}
                         className={errors.message ? 'border-destructive' : ''}
                         rows={6}
-                        placeholder="Décrivez votre demande ou posez vos questions..."
+                        placeholder={t('contactPage.messagePlaceholder')}
                       />
                       {errors.message && (
                         <p id="message-error" className="text-sm text-destructive" role="alert">
@@ -231,7 +233,7 @@ export function Contact() {
 
                     <Button type="submit" size="lg" className="w-full gap-2">
                       <Send className="h-5 w-5" aria-hidden="true" />
-                      Envoyer le message
+                      {t('contactPage.sendButton')}
                     </Button>
                   </form>
                 </CardContent>
@@ -242,9 +244,9 @@ export function Contact() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Informations de contact</CardTitle>
+                  <CardTitle>{t('contactPage.contactInfoTitle')}</CardTitle>
                   <CardDescription>
-                    Vous pouvez aussi nous joindre directement via ces canaux.
+                    {t('contactPage.contactInfoSubtitle')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -273,20 +275,20 @@ export function Contact() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Horaires d'ouverture</CardTitle>
+                  <CardTitle>{t('contactPage.hoursTitle')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Lundi - Vendredi</span>
+                    <span className="text-muted-foreground">{t('contactPage.monFri')}</span>
                     <span className="font-medium">9h00 - 18h00</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Samedi</span>
+                    <span className="text-muted-foreground">{t('contactPage.sat')}</span>
                     <span className="font-medium">10h00 - 16h00</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Dimanche</span>
-                    <span className="font-medium">Fermé</span>
+                    <span className="text-muted-foreground">{t('contactPage.sun')}</span>
+                    <span className="font-medium">{t('contactPage.closed')}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -299,9 +301,9 @@ export function Contact() {
       <section className="py-20 bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
-            <h2 className="mb-4">Notre localisation</h2>
+            <h2 className="mb-4">{t('contactPage.locationTitle')}</h2>
             <p className="text-lg text-muted-foreground">
-              Retrouvez-nous à Ben Arous, Tunisie
+              {t('contactPage.locationSubtitle')}
             </p>
           </div>
           
@@ -314,8 +316,8 @@ export function Contact() {
             allowFullScreen
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            title="Carte interactive - Emplacement de FormaPro à Ben Arous, Tunisie"
-            aria-label="Carte montrant l'emplacement de FormaPro à Ben Arous, Tunisie"
+            title={t('contactPage.mapTitle')}
+            aria-label={t('contactPage.mapAria')}
             className="rounded-lg"
           />
         </div>
