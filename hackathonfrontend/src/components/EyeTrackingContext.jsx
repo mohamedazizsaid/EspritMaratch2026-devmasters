@@ -22,12 +22,12 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
   const [selectedEye, setSelectedEye] = useState(trackedEye);
 
   const videoRef = useRef(null);
-  const tfRef = useRef(null);
   const detectorRef = useRef(null);
   const detectionLoopRef = useRef(null);
   const cursorRef = useRef(null);
   const previousCursorPosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const scrollTimerRef = useRef(null);
+  const previousEyeStatusRef = useRef({ left: 'open', right: 'open' });
 
   // Refs pour détection de clic par immobilité
   const cursorStabilityRef = useRef({
@@ -119,8 +119,8 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
       cal.dataPoints = [];
     }
 
-    // Utiliser le nez (landmark 1) pour le suivi de la tête
-    const nose = landmarks[1] || [0, 0];
+    // Utiliser le nez (landmark 30 pour face-api.js 68-point model) pour le suivi de la tête
+    const nose = landmarks[30] || landmarks[1] || [0, 0];
 
     const headX = nose[0];
     const headY = nose[1];
@@ -226,18 +226,52 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
     if (!cursorRef.current) {
       const cursor = document.createElement('div');
       cursor.className = 'eye-tracking-cursor';
+      cursor.innerHTML = `
+        <div style="
+          position: absolute;
+          top: 50%; left: 50%;
+          width: 12px; height: 12px;
+          background: #00ff88;
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+        "></div>
+        <div style="
+          position: absolute;
+          top: 50%; left: 50%;
+          width: 36px; height: 36px;
+          border: 3px solid #00ff88;
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+          animation: pulseRing 1.5s ease-out infinite;
+        "></div>
+      `;
       cursor.style.cssText = `
         position: fixed;
-        width: 20px;
-        height: 20px;
-        border: 3px solid #00ff88;
-        border-radius: 50%;
+        width: 50px;
+        height: 50px;
         pointer-events: none;
         z-index: 99999;
         transform: translate(-50%, -50%);
-        box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+        filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.8));
         display: none;
       `;
+
+      // Add animation keyframes
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes pulseRing {
+          0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
+        }
+        .eye-tracking-cursor-stable .stable-ring {
+          border-color: #ffaa00 !important;
+        }
+        .eye-tracking-cursor-stable > div:first-child {
+          background: #ffaa00 !important;
+        }
+      `;
+      document.head.appendChild(style);
+
       document.body.appendChild(cursor);
       cursorRef.current = cursor;
     } else {
@@ -276,33 +310,27 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
         setError(null);
 
         console.log('[Head Tracking] Suivi de la tête activé');
-        console.log('[Head Tracking] Configuration de TensorFlow...');
+        console.log('[Head Tracking] Chargement de face-api.js...');
 
-        // Dynamically import TensorFlow only when needed
-        const tf = await import('@tensorflow/tfjs');
-        await import('@tensorflow/tfjs-backend-webgl');
-        await import('@tensorflow/tfjs-backend-cpu');
+        // Dynamically import face-api
+        const faceapiModule = await import('face-api.js');
+        const faceapi = faceapiModule.default || faceapiModule;
 
-        // Assurer que le backend est disponible
-        try {
-          console.log('[Eye Tracking] Configuration du backend WebGL...');
-          await tf.setBackend('webgl');
-          await tf.ready();
-        } catch (e) {
-          console.warn('[Eye Tracking] WebGL non disponible, utilisation du CPU:', e);
-          await tf.setBackend('cpu');
-          await tf.ready();
+        // Load models from public/models directory
+        console.log('[Head Tracking] Chargement des modèles de détection faciale...');
+        
+        // Access nets correctly - they should be available on the faceapi object
+        if (!faceapi.nets) {
+          throw new Error('face-api.js nets not available - check if models are loaded');
         }
 
-        tfRef.current = tf;
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+        ]);
 
-        console.log('[Eye Tracking] Chargement du détecteur de repères faciaux...');
-        const facemesh = await import('@tensorflow-models/facemesh');
-
-        const model = await facemesh.load();
-
-        detectorRef.current = model;
-        console.log('[Eye Tracking] Détecteur chargé!');
+        detectorRef.current = faceapi;
+        console.log('[Head Tracking] Détecteur face-api.js chargé!');
 
         // Accéder à la webcam
         console.log('[Eye Tracking] Demande d\'accès à la webcam...');
@@ -325,17 +353,26 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
               console.log('[Head Tracking] Bougez votre tête lentement dans tous les sens pendant 5 secondes');
               videoRef.current.removeEventListener('loadedmetadata', onLoadedMetadata);
 
-              // Arrêter la calibration après 5 secondes
+              // Arrêter la calibration après 10 secondes (SSD MobileNet est plus lent)
               setTimeout(() => {
-                headCalibrationRef.current.isCalibrating = false;
-                console.log('[Head Tracking] ✅ Calibration terminée!');
+                const cal = headCalibrationRef.current;
+                // Si aucun point collecté, utiliser des valeurs par défaut raisonnables
+                if (cal.minX === Infinity || cal.dataPoints.length < 5) {
+                  console.log('[Head Tracking] ⚠️ Pas assez de données — valeurs par défaut utilisées');
+                  cal.minX = 200;
+                  cal.maxX = 440;
+                  cal.minY = 150;
+                  cal.maxY = 350;
+                }
+                cal.isCalibrating = false;
+                console.log('[Head Tracking] ✅ Calibration terminée!', cal.dataPoints.length, 'points collectés');
                 console.log('[Head Tracking] Limites de la tête:', {
-                  minX: Math.round(headCalibrationRef.current.minX),
-                  maxX: Math.round(headCalibrationRef.current.maxX),
-                  minY: Math.round(headCalibrationRef.current.minY),
-                  maxY: Math.round(headCalibrationRef.current.maxY),
+                  minX: Math.round(cal.minX),
+                  maxX: Math.round(cal.maxX),
+                  minY: Math.round(cal.minY),
+                  maxY: Math.round(cal.maxY),
                 });
-              }, 5000);
+              }, 10000);
 
               resolve();
             };
@@ -359,22 +396,28 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
               return;
             }
 
-            // Détecter les repères faciaux
-            const predictions = await detectorRef.current.estimateFaces(video);
+            // Détecter les repères faciaux avec face-api.js
+            const detections = await detectorRef.current.detectAllFaces(video).withFaceLandmarks();
 
-            if (predictions && predictions.length > 0) {
-              const face = predictions[0];
-              let landmarks = face.mesh;
-
-              // Convertir en array si c'est un tensor
-              if (landmarks && typeof landmarks.array === 'function') {
-                landmarks = await landmarks.array();
+            if (detections && detections.length > 0) {
+              const face = detections[0];
+              
+              // Extraire les landmarks en format [x, y]
+              let landmarks = [];
+              if (face.landmarks && face.landmarks._positions) {
+                landmarks = face.landmarks._positions.map(pos => [pos.x, pos.y]);
+              } else if (face.landmarks && typeof face.landmarks.getPositions === 'function') {
+                landmarks = face.landmarks.getPositions().map(pos => [pos.x, pos.y]);
+              } else if (face.landmarks) {
+                // Fallback: try to iterate through landmarks
+                landmarks = Object.values(face.landmarks).map(pos => [pos.x, pos.y]);
               }
 
               if (landmarks && landmarks.length > 0) {
                 // Points clés pour les yeux (MediaPipe landmarks)
-                const leftEyePoints = landmarks.slice(33, 42);
-                const rightEyePoints = landmarks.slice(362, 371);
+                // Pour face-api.js avec 68 landmarks
+                const leftEyePoints = landmarks.slice(36, 42);   // Points 36-41
+                const rightEyePoints = landmarks.slice(42, 48);  // Points 42-47
 
                 // CALIBRATION: Collecter les données de la tête
                 if (headCalibrationRef.current.isCalibrating) {
@@ -382,7 +425,7 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
                 }
 
                 // Utiliser la position du nez pour le curseur
-                const nose = landmarks[1] || [0, 0];
+                const nose = landmarks[30] || landmarks[0] || [0, 0];
 
                 const headX = nose[0];
                 const headY = nose[1];
@@ -448,6 +491,10 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
                   if (!stability.isStable) {
                     stability.isStable = true;
                     stability.stableStartTime = Date.now();
+                    // Ajouter classe visuelle de stabilité au curseur
+                    if (cursorRef.current) {
+                      cursorRef.current.classList.add('eye-tracking-cursor-stable');
+                    }
                     console.log('[Head Tracking] 🎯 Curseur immobile - Attente de 3 secondes...');
                   } else {
                     // Vérifier si 3 secondes sont écoulées
@@ -467,6 +514,9 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
                   // Curseur a bougé - réinitialiser
                   if (stability.isStable) {
                     console.log('[Head Tracking] ➡️ Curseur a bougé - Décompte annulé');
+                    if (cursorRef.current) {
+                      cursorRef.current.classList.remove('eye-tracking-cursor-stable');
+                    }
                   }
                   stability.isStable = false;
                   stability.stableStartTime = null;
@@ -549,8 +599,8 @@ export const EyeTrackingProvider = ({ children, trackedEye = 'right' }) => {
           setError('❌ Aucune webcam détectée sur cet appareil.');
         } else if (err.name === 'SecurityError') {
           setError('❌ HTTPS est requis pour accéder à la webcam.');
-        } else if (err.message?.includes('No backend found')) {
-          setError('❌ Erreur TensorFlow - essayez de réinstaller les dépendances.');
+        } else if (err.message?.includes('Failed to load model')) {
+          setError('❌ Erreur lors du chargement des modèles de détection faciale. Vérifiez le dossier /models.');
         } else {
           setError(`❌ Erreur: ${err.message}`);
         }

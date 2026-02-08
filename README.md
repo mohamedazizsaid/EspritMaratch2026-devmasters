@@ -198,7 +198,7 @@ La plateforme prend en charge **trois rôles d'utilisateur** :
 ### 1. Cloner le dépôt
 
 ```bash
-git clone https://github.com/votre-repo/formapro.git
+git clone https://github.com/mohamedazizsaid/EspritMaratch2026-devmasters.git
 cd formapro
 ```
 

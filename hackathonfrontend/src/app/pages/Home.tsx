@@ -1,54 +1,59 @@
 import { Link } from 'react-router';
+import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { CourseCard } from '../components/CourseCard';
 import { TestimonialCard } from '../components/TestimonialCard';
 import { ArrowRight, BookOpen, Users, Award, TrendingUp } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
+import { formationApi, type FormationDetailed } from '../../services/formationApi';
 
 export function Home() {
   const { t } = useTranslation();
 
-  const courses = [
-    {
-      title: t('homePage.courseWebDev'),
-      description: t('homePage.courseWebDevDesc'),
-      image: 'https://images.unsplash.com/photo-1593720213681-e9a8778330a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3ZWIlMjBkZXZlbG9wbWVudCUyMHByb2dyYW1taW5nfGVufDF8fHx8MTc3MDQwMTE4NXww&ixlib=rb-4.1.0&q=80&w=1080',
-      duration: `12 ${t('homePage.weeks')}`,
-      students: 2450,
-      rating: 4.8,
-      level: t('homePage.intermediate') as 'Intermédiaire' | 'Avancé' | 'Débutant',
-      category: t('homePage.development'),
-    },
-    {
-      title: t('homePage.courseDataScience'),
-      description: t('homePage.courseDataScienceDesc'),
-      image: 'https://images.unsplash.com/photo-1666875753105-c63a6f3bdc86?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkYXRhJTIwc2NpZW5jZSUyMGFuYWx5dGljc3xlbnwxfHx8fDE3NzAyOTc5NjN8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      duration: `16 ${t('homePage.weeks')}`,
-      students: 1890,
-      rating: 4.9,
-      level: t('homePage.advanced') as 'Intermédiaire' | 'Avancé' | 'Débutant',
-      category: t('homePage.dataScience'),
-    },
-    {
-      title: t('homePage.courseDesign'),
-      description: t('homePage.courseDesignDesc'),
-      image: 'https://images.unsplash.com/photo-1622784043149-82f7c74f8678?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxncmFwaGljJTIwZGVzaWduJTIwY3JlYXRpdmV8ZW58MXx8fHwxNzcwMzk0MTk4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      duration: `10 ${t('homePage.weeks')}`,
-      students: 3120,
-      rating: 4.7,
-      level: t('homePage.beginner') as 'Intermédiaire' | 'Avancé' | 'Débutant',
-      category: t('homePage.design'),
-    },
-    {
-      title: t('homePage.courseMarketing'),
-      description: t('homePage.courseMarketingDesc'),
-      image: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkaWdpdGFsJTIwbWFya2V0aW5nJTIwc3RyYXRlZ3l8ZW58MXx8fHwxNzcwMzgxMjE3fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      duration: `8 ${t('homePage.weeks')}`,
-      students: 2780,
-      rating: 4.6,
-      level: t('homePage.intermediate') as 'Intermédiaire' | 'Avancé' | 'Débutant',
-      category: t('homePage.marketing'),
-    },
+  const [formations, setFormations] = useState<FormationDetailed[]>([]);
+  const [stats, setStats] = useState({
+    totalFormations: 0,
+    totalEleves: 0,
+    totalFormateurs: 0,
+    tauxReussite: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const data = await formationApi.getAllFormationsDetailed();
+        setFormations(data.slice(0, 3));
+
+        // Calculer les stats réelles
+        const totalFormations = data.length;
+        const totalEleves = data.reduce((acc, f) => acc + (f.totalEleves || 0), 0);
+        const totalSeances = data.reduce((acc, f) => acc + (f.totalSeances || 0), 0);
+        const seancesValidees = data.reduce((acc, f) => acc + (f.seancesValidees || 0), 0);
+        const tauxReussite = totalSeances > 0 ? Math.round((seancesValidees / totalSeances) * 100) : 0;
+
+        const statsRes = await formationApi.getFormationStats();
+
+        setStats({
+          totalFormations,
+          totalEleves,
+          totalFormateurs: statsRes.totalInstructors,
+          tauxReussite,
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  // Images par défaut pour les formations
+  const defaultImages = [
+    'https://images.unsplash.com/photo-1593720213681-e9a8778330a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+    'https://images.unsplash.com/photo-1666875753105-c63a6f3bdc86?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
+    'https://images.unsplash.com/photo-1622784043149-82f7c74f8678?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080',
   ];
 
   const testimonials = [
@@ -72,11 +77,11 @@ export function Home() {
     },
   ];
 
-  const stats = [
-    { icon: Users, value: '25,000+', label: t('homePage.activeStudents') },
-    { icon: BookOpen, value: '150+', label: t('homePage.availableCourses') },
-    { icon: Award, value: '95%', label: t('homePage.satisfactionRate') },
-    { icon: TrendingUp, value: '85%', label: t('homePage.successRate') },
+  const statsDisplay = [
+    { icon: Users, value: `${stats.totalEleves}`, label: t('homePage.activeStudents') },
+    { icon: BookOpen, value: `${stats.totalFormations}`, label: t('homePage.availableCourses') },
+    { icon: Award, value: `${stats.totalFormateurs}`, label: t('homePage.satisfactionRate') },
+    { icon: TrendingUp, value: `${stats.tauxReussite}%`, label: t('homePage.successRate') },
   ];
 
   return (
@@ -121,7 +126,7 @@ export function Home() {
       <section className="py-16 bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-6 md:grid-cols-4 z-flow-grid">
-            {stats.map((stat) => (
+            {statsDisplay.map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                   <stat.icon className="h-6 w-6 text-primary" aria-hidden="true" />
@@ -144,14 +149,34 @@ export function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 z-flow-grid">
-            {courses.map((course) => (
-              <CourseCard key={course.title} {...course} />
-            ))}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 z-flow-grid">
+            {loading ? (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                Chargement des formations...
+              </div>
+            ) : formations.length === 0 ? (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                Aucune formation disponible pour le moment.
+              </div>
+            ) : (
+              formations.map((formation, index) => (
+                <CourseCard
+                  key={formation._id}
+                  title={formation.nom_formation}
+                  description={formation.description || 'Formation professionnelle'}
+                  image={defaultImages[index % defaultImages.length]}
+                  duration={`${formation.totalNiveaux || 0} niveaux · ${formation.totalSeances || 0} séances`}
+                  students={formation.totalEleves || 0}
+                  rating={formation.seancesValidees && formation.totalSeances ? Math.round((formation.seancesValidees / formation.totalSeances) * 50) / 10 : 4.5}
+                  level={formation.totalNiveaux >= 3 ? 'Avancé' : formation.totalNiveaux === 2 ? 'Intermédiaire' : 'Débutant'}
+                  category={formation.statut === 'active' ? 'Active' : 'Inactive'}
+                />
+              ))
+            )}
           </div>
 
           <div className="mt-12 text-center">
-            <Link to="/courses">
+            <Link to="/Login">
               <Button variant="outline" size="lg" className="gap-2">
                 {t('homePage.viewAll')}
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
@@ -180,19 +205,7 @@ export function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-2xl bg-primary px-8 py-16 text-center text-primary-foreground">
-            <h2 className="mb-4 text-primary-foreground">
-              {t('homePage.ctaTitle')}
-            </h2>
-            <p className="mb-8 text-xl text-primary-foreground/90 max-w-2xl mx-auto">
-              {t('homePage.ctaDesc')}
-            </p>
-           
-          </div>
-        </div>
-      </section>
+   
     </div>
   );
 }

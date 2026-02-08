@@ -11,6 +11,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ChatHistory } from './entities/chatbot.entity';
 import { Formation } from '../formation/entities/formation.entity';
 import { User } from '../auth/entities/user.entity';
+import { Eleve } from '../eleve/entities/eleve.entity';
+import { Inscription } from '../inscription/entities/inscription.entity';
+import { Presence } from '../presence/entities/presence.entity';
+import { Seance } from '../formation/entities/seance.entity';
+import { Niveau } from '../formation/entities/niveau.entity';
+import { Certification } from '../certification/entities/certification.entity';
 import { CloudinaryService } from '../eleve/cloudinary.service';
 import {
     ChatbotQueryDto,
@@ -30,6 +36,18 @@ export class GeminiService implements OnModuleInit {
         private formationModel: Model<Formation>,
         @InjectModel(User.name)
         private userModel: Model<User>,
+        @InjectModel(Eleve.name)
+        private eleveModel: Model<Eleve>,
+        @InjectModel(Inscription.name)
+        private inscriptionModel: Model<Inscription>,
+        @InjectModel(Presence.name)
+        private presenceModel: Model<Presence>,
+        @InjectModel(Seance.name)
+        private seanceModel: Model<Seance>,
+        @InjectModel(Niveau.name)
+        private niveauModel: Model<Niveau>,
+        @InjectModel(Certification.name)
+        private certificationModel: Model<Certification>,
         private cloudinaryService: CloudinaryService,
     ) { }
 
@@ -63,20 +81,140 @@ export class GeminiService implements OnModuleInit {
     }
 
     /**
-     * Construit un prompt contextuel basé sur les informations du formateur et sa formation
+     * Récupère toutes les données de la base de données et les formate pour le contexte Gemini
+     */
+    private async fetchFullDatabaseContext(): Promise<string> {
+        let dbContext = '';
+
+        try {
+            // 1. Toutes les formations
+            const formations = await this.formationModel.find().lean();
+            dbContext += `\n=== FORMATIONS (${formations.length}) ===\n`;
+            for (const f of formations) {
+                dbContext += `- ID: ${f._id} | Nom: ${f.nom_formation} | Description: ${f.description || 'N/A'} | Statut: ${f.statut} | Date création: ${f.date_creation ? new Date(f.date_creation).toLocaleDateString('fr-FR') : 'N/A'} | ID Formateur: ${f.id_formateur || 'N/A'}\n`;
+            }
+
+            // 2. Tous les niveaux
+            const niveaux = await this.niveauModel.find().populate('id_formation', 'nom_formation').lean();
+            dbContext += `\n=== NIVEAUX (${niveaux.length}) ===\n`;
+            for (const n of niveaux) {
+                const formationNom = (n.id_formation as any)?.nom_formation || 'N/A';
+                dbContext += `- ID: ${n._id} | Niveau ${n.numero_niveau}: ${n.nom_niveau} | Formation: ${formationNom} | Statut: ${n.statut ? 'Actif' : 'Inactif'}\n`;
+            }
+
+            // 3. Toutes les séances
+            const seances = await this.seanceModel.find().populate({
+                path: 'id_niveau',
+                populate: { path: 'id_formation', select: 'nom_formation' },
+            }).lean();
+            dbContext += `\n=== SÉANCES (${seances.length}) ===\n`;
+            for (const s of seances) {
+                const niveau = s.id_niveau as any;
+                const formationNom = niveau?.id_formation?.nom_formation || 'N/A';
+                const niveauNom = niveau?.nom_niveau || 'N/A';
+                dbContext += `- ID: ${s._id} | Séance ${s.numero_seance}: ${s.titre} | Niveau: ${niveauNom} | Formation: ${formationNom} | Date prévue: ${s.date_prevue ? new Date(s.date_prevue).toLocaleDateString('fr-FR') : 'N/A'} | Heure: ${s.heure_debut || 'N/A'} - ${s.heure_fin || 'N/A'} | Statut: ${s.statut ? 'Effectuée' : 'Non effectuée'}\n`;
+            }
+
+            // 4. Tous les élèves
+            const eleves = await this.eleveModel.find().lean();
+            dbContext += `\n=== ÉLÈVES (${eleves.length}) ===\n`;
+            for (const e of eleves) {
+                dbContext += `- ID: ${e._id} | ${e.nom} ${e.prenom} | Email: ${e.email || 'N/A'} | Tél: ${e.telephone || 'N/A'} | Statut: ${e.statut} | Date inscription: ${e.date_inscription ? new Date(e.date_inscription).toLocaleDateString('fr-FR') : 'N/A'}\n`;
+            }
+
+            // 5. Toutes les inscriptions
+            const inscriptions = await this.inscriptionModel.find()
+                .populate('id_eleve', 'nom prenom email')
+                .populate('id_formation', 'nom_formation')
+                .lean();
+            dbContext += `\n=== INSCRIPTIONS (${inscriptions.length}) ===\n`;
+            for (const ins of inscriptions) {
+                const eleve = ins.id_eleve as any;
+                const formation = ins.id_formation as any;
+                dbContext += `- ID: ${ins._id} | Élève: ${eleve?.nom || 'N/A'} ${eleve?.prenom || ''} | Formation: ${formation?.nom_formation || 'N/A'} | Niveau actuel: ${ins.niveau_actuel} | Statut: ${ins.statut_formation} | Date inscription: ${ins.date_inscription ? new Date(ins.date_inscription).toLocaleDateString('fr-FR') : 'N/A'}\n`;
+            }
+
+            // 6. Toutes les présences
+            const presences = await this.presenceModel.find()
+                .populate({
+                    path: 'id_inscription',
+                    populate: [
+                        { path: 'id_eleve', select: 'nom prenom' },
+                        { path: 'id_formation', select: 'nom_formation' },
+                    ],
+                })
+                .populate({
+                    path: 'id_seance',
+                    select: 'titre numero_seance date_prevue heure_debut heure_fin',
+                })
+                .lean();
+            dbContext += `\n=== PRÉSENCES (${presences.length}) ===\n`;
+            for (const p of presences) {
+                const inscription = p.id_inscription as any;
+                const seance = p.id_seance as any;
+                const eleveNom = inscription?.id_eleve ? `${inscription.id_eleve.nom} ${inscription.id_eleve.prenom}` : 'N/A';
+                const formationNom = inscription?.id_formation?.nom_formation || 'N/A';
+                const seanceTitre = seance?.titre || 'N/A';
+                const seanceDate = seance?.date_prevue ? new Date(seance.date_prevue).toLocaleDateString('fr-FR') : 'N/A';
+                dbContext += `- Élève: ${eleveNom} | Formation: ${formationNom} | Séance: ${seanceTitre} (${seanceDate}) | Présent: ${p.present ? 'Oui' : 'Non'} | Date pointage: ${p.date_pointage ? new Date(p.date_pointage).toLocaleDateString('fr-FR') : 'N/A'} | Remarques: ${p.remarques || 'Aucune'}\n`;
+            }
+
+            // 7. Tous les formateurs/users
+            const users = await this.userModel.find().select('-password -twoFactorSecret -resetCode').lean();
+            dbContext += `\n=== UTILISATEURS / FORMATEURS (${users.length}) ===\n`;
+            for (const u of users) {
+                dbContext += `- ID: ${u._id} | ${u.nom} ${u.prenom} | Email: ${u.email} | Rôle: ${u.role} | Actif: ${u.actif} | Date création: ${u.date_creation ? new Date(u.date_creation).toLocaleDateString('fr-FR') : 'N/A'}\n`;
+            }
+
+            // 8. Toutes les certifications
+            const certifications = await this.certificationModel.find()
+                .populate({
+                    path: 'id_inscription',
+                    populate: [
+                        { path: 'id_eleve', select: 'nom prenom' },
+                        { path: 'id_formation', select: 'nom_formation' },
+                    ],
+                })
+                .lean();
+            dbContext += `\n=== CERTIFICATIONS (${certifications.length}) ===\n`;
+            for (const c of certifications) {
+                const inscription = c.id_inscription as any;
+                const eleveNom = inscription?.id_eleve ? `${inscription.id_eleve.nom} ${inscription.id_eleve.prenom}` : 'N/A';
+                const formationNom = inscription?.id_formation?.nom_formation || 'N/A';
+                dbContext += `- N° Certificat: ${c.numero_certificat} | Élève: ${eleveNom} | Formation: ${formationNom} | Date délivrance: ${c.date_delivrance ? new Date(c.date_delivrance).toLocaleDateString('fr-FR') : 'N/A'} | Délivré par: ${c.delivre_par || 'N/A'}\n`;
+            }
+
+        } catch (error) {
+            console.error('[fetchFullDatabaseContext] Erreur:', error);
+            dbContext += `\n[Erreur lors de la récupération de certaines données: ${error.message}]\n`;
+        }
+
+        return dbContext;
+    }
+
+    /**
+     * Construit un prompt contextuel basé sur les informations du formateur et toute la base de données
      */
     private async buildContextualPrompt(
         user: any,
         formationId?: string,
         additionalContext?: string,
     ): Promise<string> {
-        let context = `Tu es un assistant intelligent pour les formateurs et responsables de formation. 
-Tu aides à améliorer les méthodes pédagogiques, l'organisation des formations et les stratégies d'enseignement.
+        // Récupérer les données complètes de la DB
+        const databaseContext = await this.fetchFullDatabaseContext();
 
-Informations du formateur/responsable:
+        let context = `Tu es un assistant intelligent dédié à la gestion de notre plateforme de formation.
+Tu as accès à TOUTE la base de données de la plateforme. Utilise ces données réelles pour répondre aux questions.
+Tu dois répondre de façon précise avec les vraies données ci-dessous. Ne fabrique JAMAIS de données.
+
+Informations de l'utilisateur connecté:
 - Nom: ${user.nom} ${user.prenom}
 - Rôle: ${user.role}
-- Email: ${user.email}`;
+- Email: ${user.email}
+
+===== DONNÉES DE LA BASE DE DONNÉES =====
+${databaseContext}
+===== FIN DES DONNÉES =====`;
 
         if (formationId) {
             try {
@@ -84,11 +222,7 @@ Informations du formateur/responsable:
                 if (formation) {
                     context += `
 
-Informations sur la formation:
-- Nom: ${formation.nom_formation}
-- Description: ${formation.description || 'N/A'}
-- Statut: ${formation.statut}
-- Date de création: ${new Date(formation.date_creation).toLocaleDateString('fr-FR')}`;
+L'utilisateur pose une question en rapport avec la formation: ${formation.nom_formation} (ID: ${formationId})`;
                 }
             } catch (error) {
                 console.error('Error fetching formation context:', error);
@@ -106,11 +240,15 @@ ${additionalContext}`;
 
 Instructions:
 - Réponds toujours en français
+- Utilise UNIQUEMENT les données réelles de la base de données ci-dessus pour répondre
+- Ne fabrique jamais de données, si l'information n'est pas dans la base, dis-le clairement
+- Sois précis avec les noms, dates, heures et chiffres tirés de la base
+- Si on te demande la liste des élèves d'une formation, croise les inscriptions avec les élèves
+- Si on te demande les présences d'une séance, croise les présences avec les inscriptions et les élèves
+- Si on te demande des statistiques, calcule-les à partir des données réelles
 - Sois concis mais complet
-- Fournis des conseils pratiques et actionnables
-- Si tu donnes des exemples, assure-toi qu'ils sont pertinents pour le contexte de formation
-- Propose des solutions innovantes quand c'est approprié
-- Sois empathique et encourageant`;
+- Fournis des conseils pratiques quand c'est pertinent
+- Formate bien tes réponses (listes, tableaux si nécessaire)`;
 
         return context;
     }

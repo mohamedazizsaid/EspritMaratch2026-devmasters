@@ -75,9 +75,7 @@ export function CourseCard({
       </CardContent>
 
       <CardFooter className="p-6 pt-0">
-        <Button className="w-full" aria-label={`En savoir plus sur ${title}`}>
-          En savoir plus
-        </Button>
+        
       </CardFooter>
     </Card>
   );
