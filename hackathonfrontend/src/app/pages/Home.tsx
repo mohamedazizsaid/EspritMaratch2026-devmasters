@@ -189,16 +189,7 @@ export function Home() {
             <p className="mb-8 text-xl text-primary-foreground/90 max-w-2xl mx-auto">
               {t('homePage.ctaDesc')}
             </p>
-            <Link to="/register">
-              <Button 
-                size="lg" 
-                variant="secondary"
-                className="gap-2"
-              >
-                {t('homePage.ctaButton')}
-                <ArrowRight className="h-5 w-5" aria-hidden="true" />
-              </Button>
-            </Link>
+           
           </div>
         </div>
       </section>
