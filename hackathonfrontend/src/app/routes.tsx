@@ -4,6 +4,8 @@ import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { Login } from './pages/Login';
+import { TwoFactorVerify } from './pages/TwoFactorVerify';
+import { SecuritySettings } from './pages/SecuritySettings';
 import { InstructorDashboard } from './pages/dashboards/InstructorDashboard';
 import { FormationNiveaux } from './pages/dashboards/FormationNiveaux';
 import { NiveauSeances } from './pages/dashboards/NiveauSeances';
@@ -52,6 +54,10 @@ export const createAppRouter = ({
           path: 'login',
           element: <Login onLogin={onLogin} />,
         },
+        {
+          path: 'verify-2fa',
+          element: <TwoFactorVerify onLogin={onLogin} />,
+        },
          {
           path: 'auth/google/callback',
           element: <GoogleCallback onLogin={onLogin} />,
@@ -75,6 +81,10 @@ export const createAppRouter = ({
         {
           path: 'dashboard/admin',
           element: <AdminDashboard />,
+        },
+        {
+          path: 'settings/security',
+          element: <SecuritySettings />,
         },
         {
           path: '*',

@@ -18,13 +18,19 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  access_token: string;
+  access_token?: string;
   user?: {
     _id: string;
     email: string;
     name: string;
     role?: string;
+    nom?: string;
+    prenom?: string;
+    onBoarding?: boolean;
+    twoFactorEnabled?: boolean;
   };
+  requiresTwoFactor?: boolean;
+  tempUserId?: string;
 }
 
 export interface UserProfile {
@@ -210,6 +216,114 @@ class AuthService {
       console.error('[AuthService] Reset code validation error:', error);
       throw error;
     }
+  }
+
+  // ==================== 2FA Methods ====================
+
+  /**
+   * Generate 2FA secret and QR code
+   */
+  async generateTwoFactor(): Promise<{ secret: string; qrCodeDataUrl: string; otpauthUrl: string }> {
+    const url = getApiUrl(API_CONFIG.AUTH.TWO_FACTOR_GENERATE);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Échec de la génération du code 2FA');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Enable 2FA after verifying the code
+   */
+  async enableTwoFactor(code: string): Promise<{ message: string }> {
+    const url = getApiUrl(API_CONFIG.AUTH.TWO_FACTOR_ENABLE);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ code }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Code 2FA invalide');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Verify 2FA code during login
+   */
+  async verifyTwoFactor(userId: string, code: string): Promise<AuthResponse> {
+    const url = getApiUrl(API_CONFIG.AUTH.TWO_FACTOR_VERIFY);
+    console.log('[AuthService] 2FA Verify request:', { userId, code, url });
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ userId, code }),
+    });
+
+    console.log('[AuthService] 2FA Verify response status:', response.status);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[AuthService] 2FA Verify error response:', errorData);
+      throw new Error(errorData.message || 'Code 2FA invalide ou expiré');
+    }
+
+    const result: AuthResponse = await response.json();
+    console.log('[AuthService] 2FA Verify success:', { 
+      hasToken: !!result.access_token,
+      userEmail: result.user?.email
+    });
+    
+    if (result.access_token) {
+      setAuthToken(result.access_token);
+    }
+    return result;
+  }
+
+  /**
+   * Disable 2FA
+   */
+  async disableTwoFactor(code: string): Promise<{ message: string }> {
+    const url = getApiUrl(API_CONFIG.AUTH.TWO_FACTOR_DISABLE);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ code }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Code 2FA invalide');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get 2FA status
+   */
+  async getTwoFactorStatus(): Promise<{ enabled: boolean }> {
+    const url = getApiUrl(API_CONFIG.AUTH.TWO_FACTOR_STATUS);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Échec de la récupération du statut 2FA');
+    }
+
+    return response.json();
   }
 }
 

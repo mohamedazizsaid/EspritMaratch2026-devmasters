@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { RouterProvider } from 'react-router';
 import { createAppRouter } from './routes';
 import { authService } from '../services/api';
@@ -18,10 +18,19 @@ export default function App() {
     redirectPath: string;
   } | null>(null);
 
+  const pendingRedirectRef = useRef<string | null>(null);
+
   const handleLogin = (email: string, role: 'Formateurs' | 'responsableformation' | 'Admin') => {
     setIsAuthenticated(true);
     setUserEmail(email);
     setUserRole(role);
+
+    // Check for pending redirect (from 2FA flow)
+    const pendingRedirect = localStorage.getItem('pendingRedirect');
+    if (pendingRedirect) {
+      pendingRedirectRef.current = pendingRedirect;
+      localStorage.removeItem('pendingRedirect');
+    }
 
     // Vérifier si l'onboarding doit être affiché
     const needsOnboarding = localStorage.getItem('needsOnboarding');
@@ -85,6 +94,15 @@ export default function App() {
       }),
     [isAuthenticated, userRole]
   );
+
+  // Handle pending redirect after router recreation (2FA flow)
+  useEffect(() => {
+    if (pendingRedirectRef.current && isAuthenticated) {
+      const path = pendingRedirectRef.current;
+      pendingRedirectRef.current = null;
+      router.navigate(path);
+    }
+  }, [router, isAuthenticated]);
 
   return (
     <I18nProvider translations={translations}>

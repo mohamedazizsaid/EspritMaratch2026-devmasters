@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+import * as otplib from 'otplib';
+import * as QRCode from 'qrcode';
 import { User, UserRole } from './entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -68,7 +70,7 @@ export class AuthService {
         };
     }
 
-    async login(loginDto: LoginDto): Promise<{ user: Partial<User>; access_token: string }> {
+    async login(loginDto: LoginDto): Promise<{ user: Partial<User>; access_token?: string; requiresTwoFactor?: boolean; tempUserId?: string }> {
         console.log('[AuthService] Login attempt with email:', loginDto.email);
         
         const user = await this.userModel.findOne({ email: loginDto.email });
@@ -103,6 +105,19 @@ export class AuthService {
             throw new UnauthorizedException('Email ou mot de passe incorrect');
         }
 
+        // If 2FA is enabled, don't return the token yet
+        if (user.twoFactorEnabled) {
+            console.log('[AuthService] 2FA required for user:', user.email);
+            return {
+                user: {
+                    _id: user._id,
+                    email: user.email,
+                },
+                requiresTwoFactor: true,
+                tempUserId: user._id.toString(),
+            };
+        }
+
         console.log('[AuthService] Login successful for user:', user.email);
         const payload = { sub: user._id, email: user.email, role: user.role };
         const access_token = this.jwtService.sign(payload);
@@ -118,6 +133,7 @@ export class AuthService {
                 date_creation: user.date_creation,
                 onBoarding: user.onBoarding,
                 accessibility: user.accessibility,
+                twoFactorEnabled: user.twoFactorEnabled,
             },
             access_token,
         };
@@ -309,7 +325,7 @@ export class AuthService {
         firstName: string;
         lastName: string;
         picture: string;
-    }): Promise<{ user: Partial<User>; access_token: string }> {
+    }): Promise<{ user: Partial<User>; access_token?: string; requiresTwoFactor?: boolean; tempUserId?: string }> {
         this.logger.log(`🔍 Google login pour: ${googleUser.email}`);
 
         // Chercher si l'utilisateur existe déjà
@@ -337,6 +353,19 @@ export class AuthService {
             await user.save();
         }
 
+        // If 2FA is enabled, don't return the token yet
+        if (user.twoFactorEnabled) {
+            this.logger.log(`🔐 2FA required for Google user: ${user.email}`);
+            return {
+                user: {
+                    _id: user._id,
+                    email: user.email,
+                },
+                requiresTwoFactor: true,
+                tempUserId: user._id.toString(),
+            };
+        }
+
         const payload = { sub: user._id, email: user.email, role: user.role };
         const access_token = this.jwtService.sign(payload);
 
@@ -354,8 +383,139 @@ export class AuthService {
                 googlePicture: user.googlePicture,
                 onBoarding: user.onBoarding,
                 accessibility: user.accessibility,
+                twoFactorEnabled: user.twoFactorEnabled,
             },
             access_token,
         };
+    }
+
+    // ==================== 2FA TOTP ====================
+
+    /**
+     * Generate a TOTP secret and QR code for 2FA setup
+     */
+    async generateTwoFactorSecret(userId: string): Promise<{ secret: string; qrCodeDataUrl: string; otpauthUrl: string }> {
+        const user = await this.userModel.findById(userId);
+        if (!user) throw new NotFoundException('Utilisateur non trouvé');
+
+        const secret = otplib.generateSecret();
+        const appName = 'Hackathon Formation';
+        const otpauthUrl = otplib.generateURI({
+            issuer: appName,
+            label: user.email,
+            secret,
+        });
+
+        // Store the secret temporarily (not enabled yet until verified)
+        user.twoFactorSecret = secret;
+        await user.save();
+
+        const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+        return { secret, qrCodeDataUrl, otpauthUrl };
+    }
+
+    /**
+     * Enable 2FA after user verifies the TOTP code
+     */
+    async enableTwoFactor(userId: string, code: string): Promise<{ message: string }> {
+        const user = await this.userModel.findById(userId);
+        if (!user) throw new NotFoundException('Utilisateur non trouvé');
+        if (!user.twoFactorSecret) throw new UnauthorizedException('Veuillez d\'abord générer un secret 2FA');
+
+        const result = otplib.verifySync({ token: code, secret: user.twoFactorSecret });
+        if (!result.valid) {
+            throw new UnauthorizedException('Code 2FA invalide. Veuillez réessayer.');
+        }
+
+        user.twoFactorEnabled = true;
+        await user.save();
+
+        return { message: 'Authentification à deux facteurs activée avec succès' };
+    }
+
+    /**
+     * Verify 2FA TOTP code during login
+     */
+    async verifyTwoFactor(userId: string, code: string): Promise<{ user: Partial<User>; access_token: string }> {
+        console.log('[2FA] Starting verification for userId:', userId);
+        
+        const user = await this.userModel.findById(userId);
+        if (!user) {
+            console.log('[2FA] User not found:', userId);
+            throw new NotFoundException('Utilisateur non trouvé');
+        }
+        
+        console.log('[2FA] User found:', user.email);
+        console.log('[2FA] 2FA enabled:', user.twoFactorEnabled);
+        console.log('[2FA] Has secret:', !!user.twoFactorSecret);
+        
+        if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+            console.log('[2FA] 2FA not enabled or no secret');
+            throw new UnauthorizedException('2FA n\'est pas activé pour cet utilisateur');
+        }
+
+        console.log('[2FA] Verifying code:', code);
+        console.log('[2FA] Secret exists:', !!user.twoFactorSecret);
+        
+        const result = otplib.verifySync({ token: code, secret: user.twoFactorSecret });
+        console.log('[2FA] Verification result:', result);
+        
+        if (!result.valid) {
+            console.log('[2FA] Invalid code - result:', result);
+            throw new UnauthorizedException('Code 2FA invalide ou expiré');
+        }
+
+        console.log('[2FA] Code verified successfully, generating token');
+        const payload = { sub: user._id, email: user.email, role: user.role };
+        const access_token = this.jwtService.sign(payload);
+
+        return {
+            user: {
+                _id: user._id,
+                nom: user.nom,
+                prenom: user.prenom,
+                email: user.email,
+                role: user.role,
+                actif: user.actif,
+                date_creation: user.date_creation,
+                googlePicture: user.googlePicture,
+                onBoarding: user.onBoarding,
+                accessibility: user.accessibility,
+                twoFactorEnabled: user.twoFactorEnabled,
+            },
+            access_token,
+        };
+    }
+
+    /**
+     * Disable 2FA
+     */
+    async disableTwoFactor(userId: string, code: string): Promise<{ message: string }> {
+        const user = await this.userModel.findById(userId);
+        if (!user) throw new NotFoundException('Utilisateur non trouvé');
+        if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+            throw new UnauthorizedException('2FA n\'est pas activé');
+        }
+
+        const result = otplib.verifySync({ token: code, secret: user.twoFactorSecret });
+        if (!result.valid) {
+            throw new UnauthorizedException('Code 2FA invalide');
+        }
+
+        user.twoFactorEnabled = false;
+        user.twoFactorSecret = null;
+        await user.save();
+
+        return { message: 'Authentification à deux facteurs désactivée' };
+    }
+
+    /**
+     * Get 2FA status for a user
+     */
+    async getTwoFactorStatus(userId: string): Promise<{ enabled: boolean }> {
+        const user = await this.userModel.findById(userId);
+        if (!user) throw new NotFoundException('Utilisateur non trouvé');
+        return { enabled: user.twoFactorEnabled || false };
     }
 }

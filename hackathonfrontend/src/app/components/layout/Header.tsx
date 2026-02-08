@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Menu, X, User, LogOut } from 'lucide-react';
+import { Menu, X, User, LogOut, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import { useTranslation } from '../../lib/i18n';
@@ -84,6 +84,12 @@ export function Header({ isAuthenticated = false, userRole, onLogout }: HeaderPr
                       <span>{t('common.dashboard')}</span>
                     </Button>
                   </Link>
+                  <Link to="/settings/security">
+                    <Button variant="ghost" size="sm" className="gap-2">
+                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                      <span>2FA</span>
+                    </Button>
+                  </Link>
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -154,6 +160,12 @@ export function Header({ isAuthenticated = false, userRole, onLogout }: HeaderPr
                       <Button variant="outline" size="sm" className="w-full gap-2 justify-start">
                         <User className="h-4 w-4" aria-hidden="true" />
                         <span>{t('common.dashboard')}</span>
+                      </Button>
+                    </Link>
+                    <Link to="/settings/security" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" size="sm" className="w-full gap-2 justify-start">
+                        <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                        <span>2FA</span>
                       </Button>
                     </Link>
                     <Button 

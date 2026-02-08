@@ -108,6 +108,12 @@ export function ManagerDashboard() {
   const [loadingPresence, setLoadingPresence] = useState(false);
   const [selectedFormationForPresence, setSelectedFormationForPresence] = useState<string | null>(null);
 
+  // Presence viewer dialog
+  const [viewPresenceSeanceId, setViewPresenceSeanceId] = useState<string | null>(null);
+  const [viewPresenceSeanceTitre, setViewPresenceSeanceTitre] = useState('');
+  const [viewPresenceList, setViewPresenceList] = useState<Presence[]>([]);
+  const [loadingViewPresence, setLoadingViewPresence] = useState(false);
+
   // Chatbot
   const [chatMessage, setChatMessage] = useState('');
   const [chatFormationId, setChatFormationId] = useState('none');
@@ -419,6 +425,20 @@ export function ManagerDashboard() {
   };
 
   // ===== PRESENCE =====
+  const handleViewSeancePresence = async (seanceId: string, seanceTitre: string) => {
+    setViewPresenceSeanceId(seanceId);
+    setViewPresenceSeanceTitre(seanceTitre);
+    setLoadingViewPresence(true);
+    try {
+      const res = await presenceService.findBySeance(seanceId);
+      setViewPresenceList(res);
+    } catch (e: any) {
+      toast.error(e.message || 'Erreur chargement présences');
+      setViewPresenceList([]);
+    } finally {
+      setLoadingViewPresence(false);
+    }
+  };
   const handleLoadPresences = async (seanceId: string) => {
     setSelectedSeanceId(seanceId);
     setLoadingPresence(true);
@@ -1203,7 +1223,14 @@ export function ManagerDashboard() {
                                               {!seance.date_prevue && !seance.heure_debut && <span className="text-yellow-600">{t('managerDashboard.notPlanned')}</span>}
                                             </div>
                                           </div>
-                                          <Button variant="ghost" size="sm" onClick={() => handleStartEditSeance(seance)}><Edit className="h-4 w-4" /></Button>
+                                          <div className="flex gap-1">
+                                            {seance.statut && (
+                                              <Button variant="ghost" size="sm" onClick={() => handleViewSeancePresence(seance._id, seance.titre)} title="Voir la liste de présence">
+                                                <Eye className="h-4 w-4 text-green-600" />
+                                              </Button>
+                                            )}
+                                            <Button variant="ghost" size="sm" onClick={() => handleStartEditSeance(seance)}><Edit className="h-4 w-4" /></Button>
+                                          </div>
                                         </div>
                                       )}
                                     </div>
@@ -1219,6 +1246,64 @@ export function ManagerDashboard() {
                 })}
               </div>
             )}
+
+            {/* Presence Viewer Dialog */}
+            <Dialog open={!!viewPresenceSeanceId} onOpenChange={(o) => { if (!o) { setViewPresenceSeanceId(null); setViewPresenceList([]); } }}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <ClipboardCheck className="h-5 w-5 text-primary" />
+                    Liste de présence — {viewPresenceSeanceTitre}
+                  </DialogTitle>
+                </DialogHeader>
+                {loadingViewPresence ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="ml-2 text-sm text-muted-foreground">Chargement...</span>
+                  </div>
+                ) : viewPresenceList.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ClipboardCheck className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                    <p>Aucune présence enregistrée pour cette séance.</p>
+                  </div>
+                ) : (
+                  <div className="max-h-80 overflow-y-auto space-y-2">
+                    {viewPresenceList.map((p: any) => {
+                      const eleve = typeof p.id_inscription === 'object' ? (p.id_inscription?.id_eleve || p.id_inscription) : p.id_inscription;
+                      const eleveName = typeof eleve === 'object'
+                        ? `${eleve.prenom || ''} ${eleve.nom || ''}`.trim()
+                        : (eleve || 'Élève inconnu');
+                      return (
+                        <div key={p._id} className="flex items-center justify-between border border-border rounded-lg px-3 py-2">
+                          <span className="text-sm font-medium">{eleveName}</span>
+                          <div className="flex items-center gap-2">
+                            {p.present ? (
+                              <Badge className="bg-green-100 text-green-700 border-green-300">
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Présent
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-700 border-red-300">
+                                <XCircle className="h-3.5 w-3.5 mr-1" /> Absent
+                              </Badge>
+                            )}
+                            {p.date_pointage && (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(p.date_pointage).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="pt-2 border-t border-border flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Total: {viewPresenceList.length}</span>
+                      <span className="text-green-600 font-medium">{viewPresenceList.filter((p: any) => p.present).length} présent(s)</span>
+                      <span className="text-red-600 font-medium">{viewPresenceList.filter((p: any) => !p.present).length} absent(s)</span>
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* ==================== INSCRIPTIONS ==================== */}

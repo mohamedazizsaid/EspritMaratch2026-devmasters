@@ -79,6 +79,15 @@ export function Login({ onLogin }: LoginProps) {
         password: formData.password,
       });
 
+      // Handle 2FA required
+      if (result.requiresTwoFactor) {
+        localStorage.setItem('2fa_tempUserId', result.tempUserId || '');
+        localStorage.setItem('2fa_email', result.user?.email || formData.email);
+        toast.info('Vérification 2FA requise');
+        navigate('/verify-2fa');
+        return;
+      }
+
       toast.success(`Bienvenue ${result.user?.name || ''}! Connexion réussie.`);
       
       localStorage.setItem('userid', result.user?._id || '');
@@ -100,22 +109,24 @@ export function Login({ onLogin }: LoginProps) {
       // Call onLogin callback with email and default role
       // Note: You might want to get the role from the API response
       const userRole = (result.user?.role?.toLowerCase() as any) || 'Formateurs';
-      onLogin(formData.email, userRole);
+      console.log('User role from API:', userRole);
 
-      // Navigate based on role
+      // Store redirect path BEFORE calling onLogin (which recreates the router)
+      let redirectPath = '/dashboard/instructor';
       switch (userRole) {
         case 'formateurs':
-          navigate('/dashboard/instructor');
+          redirectPath = '/dashboard/instructor';
           break;
         case 'responsableformation':
-          navigate('/dashboard/manager');
+          redirectPath = '/dashboard/manager';
           break;
         case 'admin':
-          navigate('/dashboard/admin');
+          redirectPath = '/dashboard/admin';
           break;
-        default:
-          navigate('/dashboard/instructor');
       }
+      
+      localStorage.setItem('pendingRedirect', redirectPath);
+      onLogin(formData.email, userRole);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Email ou mot de passe incorrect';
       setErrors({ ...errors, password: errorMessage });

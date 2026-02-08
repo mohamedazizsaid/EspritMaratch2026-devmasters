@@ -16,6 +16,10 @@ import {
   Check,
   XCircle,
   Scan,
+  Eye,
+  RefreshCw,
+  ClipboardCheck,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FaceIDCamera } from '../../components/FaceIDCamera';
@@ -81,6 +85,14 @@ export function NiveauSeances() {
   const [submitting, setSubmitting] = useState(false);
   const [showFaceID, setShowFaceID] = useState(false);
 
+  // Update mode (re-edit presence for completed seance)
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
+
+  // View-only presence modal
+  const [viewingSeance, setViewingSeance] = useState<Seance | null>(null);
+  const [viewPresenceList, setViewPresenceList] = useState<PresenceRecord[]>([]);
+  const [loadingViewPresence, setLoadingViewPresence] = useState(false);
+
   useEffect(() => {
     if (!formationId) return;
 
@@ -135,8 +147,147 @@ export function NiveauSeances() {
     return previousSeance?.statut === true;
   };
 
+  // ===== VIEW PRESENCE (read-only) =====
+  const handleViewPresence = async (seance: Seance) => {
+    setViewingSeance(seance);
+    setLoadingViewPresence(true);
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/formation/seance/${seance._id}/students`
+      );
+      const inscriptions: InscriptionStudent[] = response.ok ? await response.json() : [];
+
+      const presResponse = await fetch(
+        `http://localhost:3000/api/presence/seance/${seance._id}`
+      );
+      const existingPresences = presResponse.ok ? await presResponse.json() : [];
+
+      const list: PresenceRecord[] = inscriptions
+        .filter((ins) => ins.id_eleve)
+        .map((ins) => {
+          const existing = existingPresences.find(
+            (p: any) => p.id_inscription?._id === ins._id || p.id_inscription === ins._id
+          );
+          return {
+            inscriptionId: ins._id,
+            eleveId: ins.id_eleve._id,
+            nom: ins.id_eleve.nom,
+            prenom: ins.id_eleve.prenom,
+            email: ins.id_eleve.email,
+            avatar: ins.id_eleve.avatar,
+            present: existing ? existing.present : false,
+          };
+        });
+
+      setViewPresenceList(list);
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast.error('Impossible de charger les présences');
+      setViewingSeance(null);
+    } finally {
+      setLoadingViewPresence(false);
+    }
+  };
+
+  // ===== UPDATE PRESENCE (re-edit for completed seance) =====
+  const handleUpdatePresence = async (seance: Seance) => {
+    setIsUpdateMode(true);
+    try {
+      setLoadingStudents(true);
+      setSelectedSeance(seance);
+
+      const response = await fetch(
+        `http://localhost:3000/api/formation/seance/${seance._id}/students`
+      );
+      if (!response.ok) throw new Error(`Erreur API: ${response.status}`);
+      const inscriptions: InscriptionStudent[] = await response.json();
+
+      const presResponse = await fetch(
+        `http://localhost:3000/api/presence/seance/${seance._id}`
+      );
+      const existingPresences = presResponse.ok ? await presResponse.json() : [];
+
+      const list: PresenceRecord[] = inscriptions
+        .filter((ins) => ins.id_eleve)
+        .map((ins) => {
+          const existing = existingPresences.find(
+            (p: any) => p.id_inscription?._id === ins._id || p.id_inscription === ins._id
+          );
+          return {
+            inscriptionId: ins._id,
+            eleveId: ins.id_eleve._id,
+            nom: ins.id_eleve.nom,
+            prenom: ins.id_eleve.prenom,
+            email: ins.id_eleve.email,
+            avatar: ins.id_eleve.avatar,
+            present: existing ? existing.present : false,
+          };
+        });
+
+      setPresenceList(list);
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast.error('Impossible de charger les étudiants');
+      setSelectedSeance(null);
+      setIsUpdateMode(false);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  // ===== SAVE UPDATED PRESENCES (without re-validating) =====
+  const handleSaveUpdatedPresences = async () => {
+    if (!selectedSeance) return;
+    try {
+      setSubmitting(true);
+      for (const record of presenceList) {
+        try {
+          // Try to create; if 409, update existing
+          const res = await fetch('http://localhost:3000/api/presence', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id_inscription: record.inscriptionId,
+              id_seance: selectedSeance._id,
+              present: record.present,
+            }),
+          });
+          if (!res.ok && (res.status === 409 || res.status === 400)) {
+            // Presence already exists — try to update
+            const presResponse = await fetch(
+              `http://localhost:3000/api/presence/seance/${selectedSeance._id}`
+            );
+            const existing = presResponse.ok ? await presResponse.json() : [];
+            const match = existing.find(
+              (p: any) => (p.id_inscription?._id || p.id_inscription) === record.inscriptionId
+            );
+            if (match) {
+              await fetch(`http://localhost:3000/api/presence/${match._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ present: record.present }),
+              });
+            }
+          }
+        } catch {
+          // ignore individual errors
+        }
+      }
+      toast.success('Présences mises à jour avec succès !');
+      setSelectedSeance(null);
+      setPresenceList([]);
+      setIsUpdateMode(false);
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast.error('Erreur lors de la mise à jour des présences');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSeanceClick = async (seance: Seance) => {
     if (seance.statut) return; // Already completed
+    setIsUpdateMode(false);
     try {
       setLoadingStudents(true);
       setSelectedSeance(seance);
@@ -445,12 +596,32 @@ export function NiveauSeances() {
                         </div>
                       </div>
 
-                      {/* Status badge */}
-                      <div className="flex-shrink-0">
+                      {/* Status badge + action buttons */}
+                      <div className="flex-shrink-0 flex items-center gap-2">
                         {seance.statut ? (
-                          <Badge className="bg-green-100 text-green-800">
-                            Terminée
-                          </Badge>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-primary hover:bg-primary/10"
+                              title="Voir la liste de présence"
+                              onClick={(e) => { e.stopPropagation(); handleViewPresence(seance); }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-orange-600 hover:bg-orange-50"
+                              title="Modifier la présence"
+                              onClick={(e) => { e.stopPropagation(); handleUpdatePresence(seance); }}
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <Badge className="bg-green-100 text-green-800">
+                              Terminée
+                            </Badge>
+                          </>
                         ) : enabled ? (
                           <Badge className="bg-primary/10 text-primary">
                             Disponible
@@ -500,6 +671,7 @@ export function NiveauSeances() {
                 onClick={() => {
                   setSelectedSeance(null);
                   setPresenceList([]);
+                  setIsUpdateMode(false);
                 }}
               >
                 <X className="h-4 w-4" />
@@ -610,28 +782,169 @@ export function NiveauSeances() {
                     onClick={() => {
                       setSelectedSeance(null);
                       setPresenceList([]);
+                      setIsUpdateMode(false);
                     }}
                   >
                     Annuler
                   </Button>
-                  <Button
-                    onClick={handleValidateSeance}
-                    disabled={submitting}
-                    className="gap-2"
-                  >
-                    {submitting ? (
-                      <>
-                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                        Validation...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        Valider la séance
-                      </>
-                    )}
-                  </Button>
+                  {isUpdateMode ? (
+                    <Button
+                      onClick={handleSaveUpdatedPresences}
+                      disabled={submitting}
+                      className="gap-2"
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                          Mise à jour...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4" />
+                          Mettre à jour
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleValidateSeance}
+                      disabled={submitting}
+                      className="gap-2"
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                          Validation...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          Valider la séance
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* View Presence Modal (read-only) */}
+      {viewingSeance && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-background rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-hidden animate-slide-up">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <div>
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <ClipboardCheck className="h-5 w-5 text-primary" />
+                  Présence — {viewingSeance.titre}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Séance {viewingSeance.numero_seance} • {formation?.nom_formation}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => {
+                  setViewingSeance(null);
+                  setViewPresenceList([]);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {loadingViewPresence ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                    <p className="text-muted-foreground">Chargement des présences...</p>
+                  </div>
+                </div>
+              ) : viewPresenceList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                  <ClipboardCheck className="h-10 w-10 text-muted-foreground opacity-40" />
+                  <p className="text-muted-foreground">Aucune présence enregistrée pour cette séance</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm text-muted-foreground">
+                      {viewPresenceList.length} étudiant{viewPresenceList.length > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-sm font-medium text-primary">
+                      {viewPresenceList.filter((p) => p.present).length} présent{viewPresenceList.filter((p) => p.present).length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {viewPresenceList.map((record, idx) => (
+                    <div
+                      key={record.inscriptionId}
+                      className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-300 animate-slide-up ${
+                        record.present
+                          ? 'border-green-200 bg-green-50/40'
+                          : 'border-red-200 bg-red-50/30'
+                      }`}
+                      style={{ animationDelay: `${idx * 50}ms` }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={record.avatar} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                            {`${record.prenom?.[0] || ''}${record.nom?.[0] || ''}`.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">
+                            {record.prenom} {record.nom}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{record.email}</p>
+                        </div>
+                      </div>
+
+                      {record.present ? (
+                        <Badge className="bg-green-100 text-green-700 border-green-300 gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Présent
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-red-100 text-red-700 border-red-300 gap-1">
+                          <XCircle className="h-3.5 w-3.5" /> Absent
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {viewPresenceList.length > 0 && (
+              <div className="flex items-center justify-between p-6 border-t border-border bg-muted/30">
+                <div className="flex items-center gap-4 text-sm">
+                  <span>Total: {viewPresenceList.length}</span>
+                  <span className="text-green-600 font-medium">
+                    {viewPresenceList.filter((p) => p.present).length} présent(s)
+                  </span>
+                  <span className="text-red-600 font-medium">
+                    {viewPresenceList.filter((p) => !p.present).length} absent(s)
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setViewingSeance(null);
+                    setViewPresenceList([]);
+                  }}
+                >
+                  Fermer
+                </Button>
               </div>
             )}
           </div>

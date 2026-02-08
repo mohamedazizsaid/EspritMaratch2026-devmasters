@@ -19,6 +19,11 @@ export const API_CONFIG = {
     ME: '/auth/me',
     FORGOT_PASSWORD: '/auth/forgot-password',
     VALIDATE_RESET_CODE: '/auth/validate-reset-code',
+    TWO_FACTOR_GENERATE: '/auth/2fa/generate',
+    TWO_FACTOR_ENABLE: '/auth/2fa/enable',
+    TWO_FACTOR_VERIFY: '/auth/2fa/verify',
+    TWO_FACTOR_DISABLE: '/auth/2fa/disable',
+    TWO_FACTOR_STATUS: '/auth/2fa/status',
   },
   // Eleves endpoints
   ELEVES: {

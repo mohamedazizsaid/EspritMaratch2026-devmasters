@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto, ValidateResetCodeDto } from './dto/forgot-password.dto';
+import { VerifyTwoFactorDto, EnableTwoFactorDto, DisableTwoFactorDto } from './dto/two-factor.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -142,8 +143,19 @@ export class AuthController {
                 picture: req.user.picture,
             });
 
-            // Rediriger vers le frontend avec le token et les infos utilisateur
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+            // Handle 2FA required case
+            if (result.requiresTwoFactor) {
+                const params = new URLSearchParams({
+                    requiresTwoFactor: 'true',
+                    tempUserId: result.tempUserId || '',
+                    email: result.user.email || '',
+                });
+                return res.redirect(`${frontendUrl}/verify-2fa?${params.toString()}`);
+            }
+
+            // Normal flow - redirect with token
             const params = new URLSearchParams({
                 token: result.access_token,
                 userId: result.user._id?.toString() || '',
@@ -160,5 +172,56 @@ export class AuthController {
             const errorMessage = encodeURIComponent(error.message || 'Erreur de connexion Google');
             return res.redirect(`${frontendUrl}/login?error=${errorMessage}`);
         }
+    }
+
+    // ==================== 2FA Endpoints ====================
+
+    @Post('2fa/generate')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ summary: 'Générer un secret 2FA et QR code' })
+    @ApiResponse({ status: 200, description: 'Secret et QR code générés' })
+    async generateTwoFactor(@CurrentUser() user: any) {
+        return this.authService.generateTwoFactorSecret(user.userId);
+    }
+
+    @Post('2fa/enable')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ summary: 'Activer 2FA après vérification du code' })
+    @ApiResponse({ status: 200, description: '2FA activé avec succès' })
+    @ApiResponse({ status: 401, description: 'Code invalide' })
+    async enableTwoFactor(@CurrentUser() user: any, @Body() dto: EnableTwoFactorDto) {
+        return this.authService.enableTwoFactor(user.userId, dto.code);
+    }
+
+    @Post('2fa/verify')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Vérifier le code 2FA lors de la connexion' })
+    @ApiResponse({ status: 200, description: 'Code vérifié, token retourné' })
+    @ApiResponse({ status: 401, description: 'Code invalide' })
+    async verifyTwoFactor(@Body() dto: VerifyTwoFactorDto) {
+        return this.authService.verifyTwoFactor(dto.userId, dto.code);
+    }
+
+    @Post('2fa/disable')
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ summary: 'Désactiver 2FA' })
+    @ApiResponse({ status: 200, description: '2FA désactivé' })
+    @ApiResponse({ status: 401, description: 'Code invalide' })
+    async disableTwoFactor(@CurrentUser() user: any, @Body() dto: DisableTwoFactorDto) {
+        return this.authService.disableTwoFactor(user.userId, dto.code);
+    }
+
+    @Get('2fa/status')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ summary: 'Vérifier le statut 2FA' })
+    @ApiResponse({ status: 200, description: 'Statut 2FA retourné' })
+    async getTwoFactorStatus(@CurrentUser() user: any) {
+        return this.authService.getTwoFactorStatus(user.userId);
     }
 }

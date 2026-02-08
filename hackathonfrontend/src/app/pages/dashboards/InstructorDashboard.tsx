@@ -11,6 +11,7 @@ import { Badge } from '../../components/ui/badge';
 import { Progress } from '../../components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { StudentProfileModal } from '../../components/StudentProfileModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { 
   BookOpen, 
   Users, 
@@ -27,9 +28,14 @@ import {
   VolumeX,
   Mic,
   MicOff,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  ClipboardCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { chatbotService } from '../../../services/chatbot.service';
+import { presenceService } from '../../../services/api/presence.service';
 import { useTranslation } from '../../lib/i18n';
 import type { Language } from '../../lib/i18n';
 import type { ChatHistory } from '../../lib/types';
@@ -79,6 +85,12 @@ export function InstructorDashboard() {
   const [seances, setSeances] = useState<any[]>([]);
   const [loadingSeances, setLoadingSeances] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Presence viewer
+  const [presenceSeanceId, setPresenceSeanceId] = useState<string | null>(null);
+  const [presenceSeanceTitre, setPresenceSeanceTitre] = useState('');
+  const [presenceList, setPresenceList] = useState<any[]>([]);
+  const [loadingPresenceList, setLoadingPresenceList] = useState(false);
 
   // Chatbot
   const [chatMessage, setChatMessage] = useState('');
@@ -373,6 +385,22 @@ export function InstructorDashboard() {
       icon: Calendar,
     },
   ];
+
+  // ===== PRESENCE VIEWER =====
+  const handleViewPresence = async (seanceId: string, seanceTitre: string) => {
+    setPresenceSeanceId(seanceId);
+    setPresenceSeanceTitre(seanceTitre);
+    setLoadingPresenceList(true);
+    try {
+      const res = await presenceService.findBySeance(seanceId);
+      setPresenceList(res);
+    } catch (e: any) {
+      toast.error(e.message || 'Erreur chargement présences');
+      setPresenceList([]);
+    } finally {
+      setLoadingPresenceList(false);
+    }
+  };
 
   // ===== CHATBOT HANDLERS =====
   const currentUserId = formateurId;
@@ -784,9 +812,22 @@ export function InstructorDashboard() {
                           <div className="text-sm text-muted-foreground">
                             Niveau: {seance.niveau}
                           </div>
-                          <Button variant="outline" size="sm" className="w-full">
-                            {t('instructor.viewDetails')}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" className="flex-1">
+                              {t('instructor.viewDetails')}
+                            </Button>
+                            {seance.statut && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewPresence(seance._id, seance.titre)}
+                                title="Voir la liste de présence"
+                              >
+                                <ClipboardCheck className="h-4 w-4 mr-1 text-green-600" />
+                                <Eye className="h-4 w-4 text-primary" />
+                              </Button>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
@@ -799,6 +840,64 @@ export function InstructorDashboard() {
                 <p className="text-muted-foreground">{t('instructor.noSessionScheduled')}</p>
               </div>
             )}
+
+            {/* Presence Viewer Dialog */}
+            <Dialog open={!!presenceSeanceId} onOpenChange={(o) => { if (!o) { setPresenceSeanceId(null); setPresenceList([]); } }}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <ClipboardCheck className="h-5 w-5 text-primary" />
+                    Liste de présence — {presenceSeanceTitre}
+                  </DialogTitle>
+                </DialogHeader>
+                {loadingPresenceList ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="ml-2 text-sm text-muted-foreground">Chargement...</span>
+                  </div>
+                ) : presenceList.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ClipboardCheck className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                    <p>Aucune présence enregistrée pour cette séance.</p>
+                  </div>
+                ) : (
+                  <div className="max-h-80 overflow-y-auto space-y-2">
+                    {presenceList.map((p: any) => {
+                      const eleve = typeof p.id_inscription === 'object' ? (p.id_inscription?.id_eleve || p.id_inscription) : p.id_inscription;
+                      const eleveName = typeof eleve === 'object'
+                        ? `${eleve.prenom || ''} ${eleve.nom || ''}`.trim()
+                        : (eleve || 'Élève inconnu');
+                      return (
+                        <div key={p._id} className="flex items-center justify-between border border-border rounded-lg px-3 py-2">
+                          <span className="text-sm font-medium">{eleveName}</span>
+                          <div className="flex items-center gap-2">
+                            {p.present ? (
+                              <Badge className="bg-green-100 text-green-700 border-green-300">
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Présent
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-700 border-red-300">
+                                <XCircle className="h-3.5 w-3.5 mr-1" /> Absent
+                              </Badge>
+                            )}
+                            {p.date_pointage && (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(p.date_pointage).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="pt-2 border-t border-border flex items-center justify-between text-sm text-muted-foreground">
+                      <span>Total: {presenceList.length}</span>
+                      <span className="text-green-600 font-medium">{presenceList.filter((p: any) => p.present).length} présent(s)</span>
+                      <span className="text-red-600 font-medium">{presenceList.filter((p: any) => !p.present).length} absent(s)</span>
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* ==================== CHATBOT / ASSISTANT IA ==================== */}

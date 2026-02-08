@@ -44,6 +44,13 @@ export class User extends Document {
 
     @Prop({ default: null })
     resetCodeExpiry: Date;
+
+    // 2FA (TOTP)
+    @Prop({ default: false })
+    twoFactorEnabled: boolean;
+
+    @Prop({ default: null })
+    twoFactorSecret: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
