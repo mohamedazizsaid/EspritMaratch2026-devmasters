@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+import { getBaseURL } from '@/services/api/config';
+
+const API_BASE_URL = getBaseURL();
 
 function getToken(): string | null {
   return localStorage.getItem('authToken') || localStorage.getItem('token') || sessionStorage.getItem('authToken');

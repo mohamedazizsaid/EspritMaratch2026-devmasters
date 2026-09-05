@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { EleveModule } from './eleve/eleve.module';
 import { FormationModule } from './formation/formation.module';
@@ -13,6 +15,7 @@ import { ChatbotModule } from './chatbot/chatbot.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LogsModule } from './logs/logs.module';
 import { LoggingInterceptor } from './logs/logging.interceptor';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -26,6 +29,10 @@ import { LoggingInterceptor } from './logs/logging.interceptor';
       }),
       inject: [ConfigService],
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,  // 1 minute
+      limit: 100,  // 100 requêtes par minute par IP
+    }]),
     ScheduleModule.forRoot(),
     AuthModule,
     EleveModule,
@@ -36,12 +43,17 @@ import { LoggingInterceptor } from './logs/logging.interceptor';
     ChatbotModule,
     AnalyticsModule,
     LogsModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

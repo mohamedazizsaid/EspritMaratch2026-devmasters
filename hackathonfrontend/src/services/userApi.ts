@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+import { getBaseURL } from '@/services/api/config';
+
+const API_BASE_URL = getBaseURL();
 
 export interface User {
   id: string;

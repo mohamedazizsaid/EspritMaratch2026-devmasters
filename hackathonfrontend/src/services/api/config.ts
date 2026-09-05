@@ -3,9 +3,13 @@
  * Centralized configuration for all API calls
  */
 
-// Get base URL from environment or use default
-const getBaseURL = (): string => {
-  // Default to localhost for development
+// Get base URL from environment variable (VITE_API_URL)
+// En dev : http://localhost:3000/api (défini dans .env.development)
+// En prod : URL définie dans les variables Vercel
+export const getBaseURL = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) return envUrl;
+  // Fallback pour le développement local uniquement
   return 'http://localhost:3000/api';
 };
 
