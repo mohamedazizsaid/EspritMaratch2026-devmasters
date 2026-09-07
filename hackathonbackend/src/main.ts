@@ -1,4 +1,4 @@
-import { NestFactory, Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -22,9 +22,11 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // Security headers
-  app.use(helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-  }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   // CORS — dynamique selon l'environnement
   const allowedOrigins = [
@@ -49,11 +51,13 @@ async function bootstrap() {
   });
 
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // Global prefix
   app.setGlobalPrefix('api');
@@ -76,16 +80,20 @@ async function bootstrap() {
         'JWT-auth',
       )
       .addTag('auth', 'Authentification et gestion des utilisateurs')
-      .addTag('health', 'Santé de l\'API')
+      .addTag('health', "Santé de l'API")
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
-    logger.log(`Swagger docs: http://localhost:${process.env.PORT ?? 3000}/api/docs`);
+    logger.log(
+      `Swagger docs: http://localhost:${process.env.PORT ?? 3000}/api/docs`,
+    );
   }
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');
-  logger.log(`🚀 Application démarrée sur le port ${port} [${process.env.NODE_ENV ?? 'development'}]`);
+  logger.log(
+    `🚀 Application démarrée sur le port ${port} [${process.env.NODE_ENV ?? 'development'}]`,
+  );
 }
 bootstrap();

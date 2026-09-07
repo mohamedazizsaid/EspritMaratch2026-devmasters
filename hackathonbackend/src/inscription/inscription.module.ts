@@ -6,10 +6,12 @@ import { Inscription, InscriptionSchema } from './entities/inscription.entity';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Inscription.name, schema: InscriptionSchema }]),
+    MongooseModule.forFeature([
+      { name: Inscription.name, schema: InscriptionSchema },
+    ]),
   ],
   controllers: [InscriptionController],
   providers: [InscriptionService],
   exports: [InscriptionService],
 })
-export class InscriptionModule { }
+export class InscriptionModule {}

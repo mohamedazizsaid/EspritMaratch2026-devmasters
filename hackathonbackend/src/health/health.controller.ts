@@ -13,7 +13,8 @@ export class HealthController {
   @SkipThrottle() // Pas de limitation de débit sur la surveillance santé
   @ApiOperation({ summary: 'Health check endpoint' })
   check() {
-    const mongoStatus = this.connection.readyState === 1 ? 'connected' : 'disconnected';
+    const mongoStatus =
+      this.connection.readyState === 1 ? 'connected' : 'disconnected';
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),

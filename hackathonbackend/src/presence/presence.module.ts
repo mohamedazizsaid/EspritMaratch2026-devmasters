@@ -6,10 +6,12 @@ import { Presence, PresenceSchema } from './entities/presence.entity';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Presence.name, schema: PresenceSchema }]),
+    MongooseModule.forFeature([
+      { name: Presence.name, schema: PresenceSchema },
+    ]),
   ],
   controllers: [PresenceController],
   providers: [PresenceService],
   exports: [PresenceService],
 })
-export class PresenceModule { }
+export class PresenceModule {}

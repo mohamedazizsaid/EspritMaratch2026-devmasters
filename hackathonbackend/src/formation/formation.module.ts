@@ -5,9 +5,15 @@ import { FormationController } from './formation.controller';
 import { Formation, FormationSchema } from './entities/formation.entity';
 import { Niveau, NiveauSchema } from './entities/niveau.entity';
 import { Seance, SeanceSchema } from './entities/seance.entity';
-import { Inscription, InscriptionSchema } from 'src/inscription/entities/inscription.entity';
+import {
+  Inscription,
+  InscriptionSchema,
+} from 'src/inscription/entities/inscription.entity';
 import { Presence, PresenceSchema } from '../presence/entities/presence.entity';
-import { Certification, CertificationSchema } from '../certification/entities/certification.entity';
+import {
+  Certification,
+  CertificationSchema,
+} from '../certification/entities/certification.entity';
 import { AuthModule } from '../auth/auth.module';
 import { FormationScheduler } from './formation.scheduler';
 
@@ -27,4 +33,4 @@ import { FormationScheduler } from './formation.scheduler';
   providers: [FormationService, FormationScheduler],
   exports: [FormationService],
 })
-export class FormationModule { }
+export class FormationModule {}

@@ -25,25 +25,27 @@ import { HealthModule } from './health/health.module';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI') || 'mongodb://localhost:27017/hackathon',
+        uri:
+          configService.get<string>('MONGODB_URI') ||
+          'mongodb://localhost:27017/hackathon',
       }),
       inject: [ConfigService],
     }),
     ThrottlerModule.forRoot([
       {
         name: 'short',
-        ttl: 1000,   // 1 seconde
-        limit: 20,   // Max 20 requêtes par seconde (protection anti-flood/burst)
+        ttl: 1000, // 1 seconde
+        limit: 20, // Max 20 requêtes par seconde (protection anti-flood/burst)
       },
       {
         name: 'medium',
-        ttl: 10000,  // 10 secondes
-        limit: 80,   // Max 80 requêtes par 10 secondes
+        ttl: 10000, // 10 secondes
+        limit: 80, // Max 80 requêtes par 10 secondes
       },
       {
         name: 'long',
-        ttl: 60000,  // 1 minute
-        limit: 200,  // Max 200 requêtes par minute par IP
+        ttl: 60000, // 1 minute
+        limit: 200, // Max 200 requêtes par minute par IP
       },
     ]),
     ScheduleModule.forRoot(),
@@ -70,4 +72,4 @@ import { HealthModule } from './health/health.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

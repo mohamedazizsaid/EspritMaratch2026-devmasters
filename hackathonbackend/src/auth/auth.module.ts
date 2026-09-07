@@ -11,25 +11,25 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { MailingService } from './mailing.service';
 
 @Module({
-    imports: [
-        MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-        PassportModule.register({ defaultStrategy: 'jwt' }),
-        JwtModule.registerAsync({
-            imports: [ConfigModule],
-            useFactory: (configService: ConfigService) => {
-                const expiresIn = configService.get<string>('JWT_EXPIRES_IN') || '7d';
-                return {
-                    secret: configService.get<string>('JWT_SECRET') || 'defaultSecret',
-                    signOptions: {
-                        expiresIn: expiresIn as any,
-                    },
-                };
-            },
-            inject: [ConfigService],
-        }),
-    ],
-    controllers: [AuthController],
-    providers: [AuthService, JwtStrategy, GoogleStrategy, MailingService],
-    exports: [AuthService, JwtStrategy, PassportModule, MailingService],
+  imports: [
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN') || '7d';
+        return {
+          secret: configService.get<string>('JWT_SECRET') || 'defaultSecret',
+          signOptions: {
+            expiresIn: expiresIn as any,
+          },
+        };
+      },
+      inject: [ConfigService],
+    }),
+  ],
+  controllers: [AuthController],
+  providers: [AuthService, JwtStrategy, GoogleStrategy, MailingService],
+  exports: [AuthService, JwtStrategy, PassportModule, MailingService],
 })
-export class AuthModule { }
+export class AuthModule {}

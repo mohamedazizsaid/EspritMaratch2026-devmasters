@@ -8,26 +8,26 @@ import { User } from '../entities/user.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor(
-        private configService: ConfigService,
-        @InjectModel(User.name) private userModel: Model<User>,
-    ) {
-        super({
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-            ignoreExpiration: false,
-            secretOrKey: configService.get<string>('JWT_SECRET') || 'defaultSecret',
-        });
-    }
+  constructor(
+    private configService: ConfigService,
+    @InjectModel(User.name) private userModel: Model<User>,
+  ) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'defaultSecret',
+    });
+  }
 
-    async validate(payload: any) {
-        const user = await this.userModel.findById(payload.sub);
-        if (!user || !user.actif) {
-            throw new UnauthorizedException('Utilisateur non autorisé');
-        }
-        return {
-            userId: payload.sub,
-            email: payload.email,
-            role: payload.role,
-        };
+  async validate(payload: any) {
+    const user = await this.userModel.findById(payload.sub);
+    if (!user || !user.actif) {
+      throw new UnauthorizedException('Utilisateur non autorisé');
     }
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      role: payload.role,
+    };
+  }
 }
