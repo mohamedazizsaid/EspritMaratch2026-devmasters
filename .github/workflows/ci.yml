@@ -82,18 +82,26 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────
-  # Job 3 : Notification de succès
+  # Job 3 : Déploiement automatique (Render & Vercel)
+  # Déclenché UNIQUEMENT si Backend CI ET Frontend CI ont réussi !
   # ─────────────────────────────────────────────
-  notify:
-    name: Notify Deploy Ready
+  deploy:
+    name: Deploy to Render & Vercel
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/aziz')
 
     steps:
-      - name: CI passed — Render & Vercel will auto-deploy
+      - name: Trigger Render Deploy Hook (Backend)
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
         run: |
-          echo "✅ Backend build OK"
-          echo "✅ Frontend build OK"
-          echo "🚀 Render détecte automatiquement le push et déploie le backend"
-          echo "🚀 Vercel détecte automatiquement le push et déploie le frontend"
+          echo "🚀 Déclenchement du déploiement Render..."
+          curl -s -S -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          echo "✅ Signal de déploiement envoyé à Render !"
+
+      - name: Trigger Vercel Deploy Hook (Frontend)
+        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+        run: |
+          echo "🚀 Déclenchement du déploiement Vercel..."
+          curl -s -S -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+          echo "✅ Signal de déploiement envoyé à Vercel !"
