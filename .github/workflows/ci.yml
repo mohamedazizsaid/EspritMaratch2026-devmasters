@@ -93,15 +93,25 @@ jobs:
 
     steps:
       - name: Trigger Render Deploy Hook (Backend)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          echo "🚀 Déclenchement du déploiement Render..."
-          curl -s -S -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
-          echo "✅ Signal de déploiement envoyé à Render !"
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "⚠️ RENDER_DEPLOY_HOOK_URL non configuré dans les secrets GitHub."
+          else
+            echo "🚀 Déclenchement du déploiement Render..."
+            curl -s -S -X POST "$RENDER_DEPLOY_HOOK_URL"
+            echo "✅ Signal de déploiement envoyé à Render !"
+          fi
 
       - name: Trigger Vercel Deploy Hook (Frontend)
-        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
-          echo "🚀 Déclenchement du déploiement Vercel..."
-          curl -s -S -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
-          echo "✅ Signal de déploiement envoyé à Vercel !"
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "⚠️ VERCEL_DEPLOY_HOOK_URL non configuré dans les secrets GitHub."
+          else
+            echo "🚀 Déclenchement du déploiement Vercel..."
+            curl -s -S -X POST "$VERCEL_DEPLOY_HOOK_URL"
+            echo "✅ Signal de déploiement envoyé à Vercel !"
+          fi
