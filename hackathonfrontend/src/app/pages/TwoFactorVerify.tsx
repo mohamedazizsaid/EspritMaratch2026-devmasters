@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { authService } from '../../services/api';
+import { ScrollReveal } from '../components/ScrollReveal';
 
 interface TwoFactorVerifyProps {
   onLogin: (email: string, role: 'Formateurs' | 'responsableformation' | 'Admin') => void;
@@ -151,19 +152,22 @@ export function TwoFactorVerify({ onLogin }: TwoFactorVerifyProps) {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary/5 via-background to-secondary/20">
-      <div className="w-full max-w-md">
+    <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-primary/5 via-background to-background overflow-hidden">
+      {/* Glow blobs */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-primary/15 blur-[130px] -z-10 rounded-full pointer-events-none" />
+
+      <ScrollReveal direction="up" className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+          <div className="mx-auto w-16 h-16 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-primary/15">
             <ShieldCheck className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Vérification 2FA</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-2">Vérification 2FA</h1>
+          <p className="text-sm text-muted-foreground">
             Entrez le code de votre application d'authentification
           </p>
         </div>
 
-        <Card>
+        <Card className="rounded-3xl border border-border/80 shadow-2xl backdrop-blur-xl bg-card/90 overflow-hidden">
           <CardHeader>
             <CardTitle className="text-center">Code à 6 chiffres</CardTitle>
             <CardDescription className="text-center">
@@ -223,7 +227,7 @@ export function TwoFactorVerify({ onLogin }: TwoFactorVerifyProps) {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </ScrollReveal>
     </div>
   );
 }

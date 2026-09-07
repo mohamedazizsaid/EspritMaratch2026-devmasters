@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { StatsCard } from '../../components/StatsCard';
+import { ScrollReveal } from '../../components/ScrollReveal';
 import { Badge } from '../../components/ui/badge';
 import { Progress } from '../../components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
@@ -36,6 +37,7 @@ import {
 import { toast } from 'sonner';
 import { chatbotService } from '../../../services/chatbot.service';
 import { presenceService } from '../../../services/api/presence.service';
+import { API_CONFIG } from '../../../services/api/config';
 import { useTranslation } from '../../lib/i18n';
 import type { Language } from '../../lib/i18n';
 import type { ChatHistory } from '../../lib/types';
@@ -190,7 +192,7 @@ export function InstructorDashboard() {
       try {
         setLoadingSeances(true);
         const response = await fetch(
-          `http://localhost:3000/api/formation/formateur/${formateurId}/seances`
+          `${API_CONFIG.BASE_URL}/formation/formateur/${formateurId}/seances`
         );
         if (!response.ok) {
           throw new Error(`Erreur API: ${response.status}`);
@@ -216,7 +218,7 @@ export function InstructorDashboard() {
       try {
         setLoadingStudents(true);
         const response = await fetch(
-          `http://localhost:3000/api/eleves/eleves-by-formateur/${formateurId}`
+          `${API_CONFIG.BASE_URL}/eleves/eleves-by-formateur/${formateurId}`
         );
         if (!response.ok) {
           throw new Error(`Erreur API: ${response.status}`);
@@ -260,7 +262,7 @@ export function InstructorDashboard() {
     const fetchProgress = async () => {
       try {
         const response = await fetch(
-          `http://localhost:3000/api/formation/formateur/${formateurId}/student-progress`
+          `${API_CONFIG.BASE_URL}/formation/formateur/${formateurId}/student-progress`
         );
         if (!response.ok) return;
         const progressData: Record<string, number> = await response.json();
@@ -287,7 +289,7 @@ export function InstructorDashboard() {
         setLoading(true);
         console.log('Fetching formations for formateur ID:', formateurId);
 
-        const response = await fetch(`http://localhost:3000/api/formation/formateur/${formateurId}`);
+        const response = await fetch(`${API_CONFIG.BASE_URL}/formation/formateur/${formateurId}`);
         if (!response.ok) {
           throw new Error(`Erreur API: ${response.status}`);
         }
@@ -467,53 +469,66 @@ export function InstructorDashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b border-border bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="mb-2">{t('instructor.title')}</h1>
-          <p className="text-muted-foreground">
-            {t('instructor.subtitle')}
-          </p>
+      <div className="relative border-b border-border/80 bg-background/80 backdrop-blur-md overflow-hidden">
+        <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[650px] h-[280px] bg-gradient-to-tr from-primary/15 via-indigo-500/10 to-transparent blur-3xl -z-10 rounded-full" />
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <ScrollReveal direction="down">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-3">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Espace Formateur & Pédagogie</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground mb-2">
+              {t('instructor.title')}
+            </h1>
+            <p className="text-muted-foreground max-w-2xl text-sm sm:text-base">
+              {t('instructor.subtitle')}
+            </p>
+          </ScrollReveal>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4 z-flow-grid">
-          {stats.map((stat) => (
-            <StatsCard key={stat.title} {...stat} />
-          ))}
-        </div>
+        <ScrollReveal direction="up" delay={0.1}>
+          <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4 z-flow-grid">
+            {stats.map((stat) => (
+              <StatsCard key={stat.title} {...stat} />
+            ))}
+          </div>
+        </ScrollReveal>
 
         {/* Tabs */}
         <Tabs defaultValue="courses" className="space-y-6">
-          <TabsList className="flex justify-center gap-2 w-full">
-            <TabsTrigger value="courses" className="gap-2">
-              <BookOpen className="h-4 w-4" aria-hidden="true" />
-              <span>{t('instructor.myFormations')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="students" className="gap-2">
-              <Users className="h-4 w-4" aria-hidden="true" />
-              <span>{t('instructor.myStudents')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="gap-2">
-              <Calendar className="h-4 w-4" aria-hidden="true" />
-              <span>{t('common.calendar')}</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="chatbot"
-              className="gap-2"
-              onClick={() => {
-                if (!chatInitialized) {
-                  setChatInitialized(true);
-                  loadChatHistory();
-                }
-              }}
-            >
-              <Bot className="h-4 w-4" aria-hidden="true" />
-              <span>Assistant IA</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex justify-center">
+            <TabsList className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-muted/60 backdrop-blur-md rounded-2xl border border-border/60 shadow-sm w-full max-w-2xl h-auto">
+              <TabsTrigger value="courses" className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all">
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                <span>{t('instructor.myFormations')}</span>
+              </TabsTrigger>
+              <TabsTrigger value="students" className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all">
+                <Users className="h-4 w-4" aria-hidden="true" />
+                <span>{t('instructor.myStudents')}</span>
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all">
+                <Calendar className="h-4 w-4" aria-hidden="true" />
+                <span>{t('common.calendar')}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="chatbot"
+                className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all"
+                onClick={() => {
+                  if (!chatInitialized) {
+                    setChatInitialized(true);
+                    loadChatHistory();
+                  }
+                }}
+              >
+                <Bot className="h-4 w-4" aria-hidden="true" />
+                <span>Assistant IA</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Formations Tab */}
           <TabsContent value="courses" className="space-y-6">

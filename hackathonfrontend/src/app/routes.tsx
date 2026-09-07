@@ -1,9 +1,10 @@
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 import { Root } from './Root';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { TwoFactorVerify } from './pages/TwoFactorVerify';
 import { SecuritySettings } from './pages/SecuritySettings';
 import { InstructorDashboard } from './pages/dashboards/InstructorDashboard';
@@ -53,6 +54,10 @@ export const createAppRouter = ({
         {
           path: 'login',
           element: <Login onLogin={onLogin} />,
+        },
+        {
+          path: 'register',
+          element: <Register onRegister={onRegister} />,
         },
         {
           path: 'verify-2fa',

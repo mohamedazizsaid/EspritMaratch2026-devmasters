@@ -59,14 +59,31 @@ export default function App() {
   };
 
   const handleOnboardingComplete = () => {
+    const targetPath = onboardingData?.redirectPath || '/dashboard/instructor';
     setShowOnboarding(false);
     setOnboardingData(null);
+    if (router) {
+      router.navigate(targetPath);
+    }
   };
 
   const handleRegister = (email: string) => {
     setIsAuthenticated(true);
     setUserEmail(email);
     setUserRole('Formateurs');
+
+    const userId = localStorage.getItem('userid') || '';
+    const prenom = localStorage.getItem('userPrenom') || '';
+    const nom = localStorage.getItem('userNom') || '';
+
+    setOnboardingData({
+      userId,
+      userName: `${prenom} ${nom}`.trim() || email,
+      userRole: 'Formateurs',
+      redirectPath: '/dashboard/instructor',
+    });
+    setShowOnboarding(true);
+    localStorage.removeItem('needsOnboarding');
   };
 
   const handleLogout = async () => {

@@ -14,6 +14,10 @@ async function bootstrap() {
       : ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
+  // Trust proxy (Render, Vercel, reverse proxies) pour un rate-limiting précis par IP client
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
+
   // Graceful shutdown
   app.enableShutdownHooks();
 

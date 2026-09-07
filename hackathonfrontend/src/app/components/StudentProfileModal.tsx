@@ -47,23 +47,23 @@ export function StudentProfileModal({
     switch (status) {
       case 'actif':
       case 'active':
-        return 'bg-green-100 text-green-800';
+        return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
       case 'inactif':
       case 'inactive':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-muted text-muted-foreground border border-border';
       case 'suspendu':
       case 'suspended':
-        return 'bg-red-100 text-red-800';
+        return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20';
       default:
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-primary/10 text-primary border border-primary/20';
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-background rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-background/95 backdrop-blur-md rounded-2xl shadow-2xl border border-border/80 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-background">
+        <div className="flex items-center justify-between p-6 border-b border-border/70 sticky top-0 bg-background/90 backdrop-blur-md z-10">
           <h2 className="text-2xl font-bold">Profil de l'étudiant</h2>
           <Button
             variant="ghost"

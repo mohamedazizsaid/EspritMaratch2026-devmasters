@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, UseGuards, HttpCode, HttpStatus, Param, Patch, Delete, Req, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -24,6 +25,7 @@ export class AuthController {
     }
 
     @Post('login')
+    @Throttle({ default: { limit: 10, ttl: 60000 } }) // Anti brute-force: max 10 tentatives/min
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Connexion d\'un utilisateur' })
     @ApiResponse({ status: 200, description: 'Connexion réussie, retourne le token JWT' })
@@ -93,6 +95,7 @@ export class AuthController {
     }
 
     @Post('forgot-password')
+    @Throttle({ default: { limit: 5, ttl: 60000 } }) // Anti-spam email: max 5 demandes/min
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Demander la réinitialisation du mot de passe' })
     @ApiResponse({ status: 200, description: 'Un code de réinitialisation a été envoyé' })

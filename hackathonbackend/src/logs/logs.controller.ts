@@ -65,4 +65,11 @@ export class LogsController {
     cleanupOldLogs(@Query('days') days?: string) {
         return this.logsService.cleanupOldLogs(parseInt(days || '30', 10));
     }
+
+    @Delete('purge-all')
+    @ApiOperation({ summary: 'Supprimer TOUS les logs (purge complète)' })
+    @ApiResponse({ status: 200, description: 'Tous les logs supprimés.' })
+    purgeAllLogs() {
+        return this.logsService.purgeAllLogs();
+    }
 }

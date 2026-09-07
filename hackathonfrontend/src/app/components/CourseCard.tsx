@@ -26,16 +26,18 @@ export function CourseCard({
   category,
 }: CourseCardProps) {
   return (
-    <Card className="h-full flex flex-col transition-shadow hover:shadow-lg focus-within:ring-2 focus-within:ring-ring">
+    <Card className="group h-full flex flex-col rounded-2xl border border-border/70 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:border-primary/40 hover:-translate-y-1.5 overflow-hidden">
       <CardHeader className="p-0">
-        <div className="relative aspect-video w-full overflow-hidden rounded-t-lg">
-          <ImageWithFallback
-            src={image}
-            alt={`Image du cours ${title}`}
-            className="h-full w-full object-cover"
-          />
+        <div className="relative aspect-video w-full overflow-hidden">
+          <div className="w-full h-full transform transition-transform duration-500 group-hover:scale-105">
+            <ImageWithFallback
+              src={image}
+              alt={`Image du cours ${title}`}
+              className="h-full w-full object-cover"
+            />
+          </div>
           <Badge 
-            className="absolute top-3 left-3 bg-background/90 text-foreground hover:bg-background"
+            className="absolute top-3 left-3 bg-background/85 backdrop-blur-md text-foreground border border-border/60 hover:bg-background shadow-sm"
             aria-label={`Catégorie: ${category}`}
           >
             {category}

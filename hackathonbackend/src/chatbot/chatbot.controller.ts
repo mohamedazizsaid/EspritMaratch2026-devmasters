@@ -20,6 +20,7 @@ import {
     ApiBearerAuth,
     ApiConsumes,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { GeminiService } from './gemini.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -38,6 +39,7 @@ export class ChatbotController {
     constructor(private readonly geminiService: GeminiService) { }
 
     @Post('ask')
+    @Throttle({ default: { limit: 25, ttl: 60000 } }) // Protection IA: max 25 questions/min
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
         summary: 'Poser une question à l\'assistant Gemini intelligent',

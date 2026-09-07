@@ -11,6 +11,7 @@ import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { StatsCard } from '../../components/StatsCard';
+import { ScrollReveal } from '../../components/ScrollReveal';
 import { Badge } from '../../components/ui/badge';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { Switch } from '../../components/ui/switch';
@@ -88,6 +89,12 @@ export function AdminDashboard() {
   const [selectedLogType, setSelectedLogType] = useState<string>('all');
   const [selectedLogAction, setSelectedLogAction] = useState<string>('all');
   const [selectedLogMethod, setSelectedLogMethod] = useState<string>('all');
+
+  // Purge logs state
+  const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
+  const [isCleanupDialogOpen, setIsCleanupDialogOpen] = useState(false);
+  const [cleanupDays, setCleanupDays] = useState<string>('30');
+  const [isPurging, setIsPurging] = useState(false);
 
   const { t } = useTranslation();
 
@@ -184,6 +191,46 @@ export function AdminDashboard() {
 
   const refreshLogs = () => {
     loadLogs(logsPage, logFilters);
+  };
+
+  const handleCleanupLogs = async () => {
+    try {
+      setIsPurging(true);
+      const result = await logsApi.cleanupOldLogs(parseInt(cleanupDays, 10));
+      if (result) {
+        toast.success(`${result.deletedCount} log(s) supprimé(s) avec succès.`);
+        loadLogs(1, logFilters);
+        setLogsPage(1);
+      } else {
+        toast.error('Impossible de nettoyer les logs.');
+      }
+    } catch (err) {
+      toast.error('Erreur lors du nettoyage des logs.');
+    } finally {
+      setIsPurging(false);
+      setIsCleanupDialogOpen(false);
+    }
+  };
+
+  const handlePurgeAllLogs = async () => {
+    try {
+      setIsPurging(true);
+      const result = await logsApi.purgeAllLogs();
+      if (result) {
+        toast.success(`Purge complète : ${result.deletedCount} log(s) supprimé(s).`);
+        setLogs([]);
+        setLogsTotal(0);
+        setLogsTotalPages(0);
+        setLogsPage(1);
+      } else {
+        toast.error('Impossible de purger les logs.');
+      }
+    } catch (err) {
+      toast.error('Erreur lors de la purge des logs.');
+    } finally {
+      setIsPurging(false);
+      setIsPurgeDialogOpen(false);
+    }
   };
 
   // Mock data
@@ -392,48 +439,61 @@ export function AdminDashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b border-border bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="mb-2">{t('adminDashboard.title')}</h1>
-          <p className="text-muted-foreground">
-            {t('adminDashboard.subtitle')}
-          </p>
+      <div className="relative border-b border-border/80 bg-background/80 backdrop-blur-md overflow-hidden">
+        <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[650px] h-[280px] bg-gradient-to-tr from-primary/15 via-indigo-500/10 to-transparent blur-3xl -z-10 rounded-full" />
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <ScrollReveal direction="down">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-3">
+              <Shield className="w-3.5 h-3.5" />
+              <span>Console Administration & Sécurité</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground mb-2">
+              {t('adminDashboard.title')}
+            </h1>
+            <p className="text-muted-foreground max-w-2xl text-sm sm:text-base">
+              {t('adminDashboard.subtitle')}
+            </p>
+          </ScrollReveal>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4 z-flow-grid">
-          {stats.map((stat) => (
-            <StatsCard key={stat.title} {...stat} />
-          ))}
-        </div>
+        <ScrollReveal direction="up" delay={0.1}>
+          <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4 z-flow-grid">
+            {stats.map((stat) => (
+              <StatsCard key={stat.title} {...stat} />
+            ))}
+          </div>
+        </ScrollReveal>
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid grid-cols-2 lg:grid-cols-5 gap-2 w-fit mx-auto">
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="h-4 w-4" aria-hidden="true" />
-              <span>{t('adminDashboard.users')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2">
-              <TrendingUp className="h-4 w-4" aria-hidden="true" />
-              <span>{t('adminDashboard.analytics')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="gap-2">
-              <Shield className="h-4 w-4" aria-hidden="true" />
-              <span>{t('adminDashboard.roles')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="gap-2">
-              <Activity className="h-4 w-4" aria-hidden="true" />
-              <span>{t('adminDashboard.activity')}</span>
-            </TabsTrigger>
-            <TabsTrigger value="formations" className="gap-2">
-              <BookOpen className="h-4 w-4" aria-hidden="true" />
-              <span>{t('common.formations')}</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex justify-center">
+            <TabsList className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 p-1.5 bg-muted/60 backdrop-blur-md rounded-2xl border border-border/60 shadow-sm w-full max-w-3xl h-auto">
+              <TabsTrigger value="users" className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all">
+                <Users className="h-4 w-4" aria-hidden="true" />
+                <span>{t('adminDashboard.users')}</span>
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all">
+                <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                <span>{t('adminDashboard.analytics')}</span>
+              </TabsTrigger>
+              <TabsTrigger value="roles" className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all">
+                <Shield className="h-4 w-4" aria-hidden="true" />
+                <span>{t('adminDashboard.roles')}</span>
+              </TabsTrigger>
+              <TabsTrigger value="logs" className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all">
+                <Activity className="h-4 w-4" aria-hidden="true" />
+                <span>{t('adminDashboard.activity')}</span>
+              </TabsTrigger>
+              <TabsTrigger value="formations" className="gap-2 rounded-xl py-2.5 data-[state=active]:shadow-md transition-all">
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                <span>{t('common.formations')}</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Users Tab */}
           <TabsContent value="users" className="space-y-6">
@@ -1106,12 +1166,100 @@ export function AdminDashboard() {
           <TabsContent value="logs" className="space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <h2>{t('adminDashboard.activityLog')}</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-muted-foreground">{logsTotal} {t('adminDashboard.totalActivities')}</span>
                 <Button variant="outline" size="sm" onClick={refreshLogs} disabled={logsLoading}>
                   <RefreshCw className={`h-4 w-4 mr-2 ${logsLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
                   {t('common.refresh')}
                 </Button>
+
+                {/* Cleanup by days dialog */}
+                <Dialog open={isCleanupDialogOpen} onOpenChange={setIsCleanupDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 border-warning/50 text-warning hover:bg-warning/10 hover:border-warning">
+                      <Clock className="h-4 w-4" />
+                      Nettoyer
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-warning" />
+                        Nettoyage des anciens logs
+                      </DialogTitle>
+                      <DialogDescription>
+                        Supprime tous les logs antérieurs au nombre de jours sélectionné.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="cleanup-days">Supprimer les logs de plus de</Label>
+                        <Select value={cleanupDays} onValueChange={setCleanupDays}>
+                          <SelectTrigger id="cleanup-days">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="7">7 jours</SelectItem>
+                            <SelectItem value="14">14 jours</SelectItem>
+                            <SelectItem value="30">30 jours</SelectItem>
+                            <SelectItem value="60">60 jours</SelectItem>
+                            <SelectItem value="90">90 jours</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsCleanupDialogOpen(false)} disabled={isPurging}>
+                        Annuler
+                      </Button>
+                      <Button
+                        variant="default"
+                        onClick={handleCleanupLogs}
+                        disabled={isPurging}
+                        className="bg-warning text-warning-foreground hover:bg-warning/90"
+                      >
+                        {isPurging ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Nettoyage...</> : 'Nettoyer les logs'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Purge all dialog */}
+                <Dialog open={isPurgeDialogOpen} onOpenChange={setIsPurgeDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive">
+                      <Trash2 className="h-4 w-4" />
+                      Purger tout
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2 text-destructive">
+                        <AlertCircle className="h-5 w-5" />
+                        Purge complète des logs
+                      </DialogTitle>
+                      <DialogDescription className="text-base">
+                        <span className="font-semibold text-destructive">⚠️ Action irréversible.</span>{' '}
+                        Tous les logs système seront définitivement supprimés. Cette action ne peut pas être annulée.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-muted-foreground">
+                      Actuellement <strong className="text-foreground">{logsTotal} log(s)</strong> seront supprimés.
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsPurgeDialogOpen(false)} disabled={isPurging}>
+                        Annuler
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handlePurgeAllLogs}
+                        disabled={isPurging}
+                      >
+                        {isPurging ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Purge en cours...</> : <><Trash2 className="h-4 w-4 mr-2" />Confirmer la purge</>}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 

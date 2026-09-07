@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useTranslation } from '../../lib/i18n';
+import { API_CONFIG } from '../../../services/api/config';
+import { ScrollReveal } from '../../components/ScrollReveal';
 import {
   ArrowLeft,
   BookOpen,
@@ -47,7 +49,7 @@ export function FormationNiveaux() {
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:3000/api/formation/${formationId}`
+          `${API_CONFIG.BASE_URL}/formation/${formationId}`
         );
         if (!response.ok) {
           throw new Error(`Erreur API: ${response.status}`);
@@ -147,9 +149,10 @@ export function FormationNiveaux() {
 
       {/* Formation Info */}
       <div className="mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <Card className="animate-slide-up">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
+        <ScrollReveal direction="up">
+          <Card className="border-border/80 shadow-md">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" />
               {t('formationNiveaux.formationInfo')}
             </CardTitle>
@@ -198,6 +201,7 @@ export function FormationNiveaux() {
             </div>
           </CardContent>
         </Card>
+      </ScrollReveal>
 
         {/* Niveaux List */}
         <div className="space-y-4">
@@ -212,7 +216,7 @@ export function FormationNiveaux() {
               const isEnabled = index === 0 || sortedNiveaux[index - 1]?.statut === true;
 
               return (
-                <div key={niveau._id} className="relative">
+                <ScrollReveal key={niveau._id} direction="up" delay={index * 0.08} className="relative">
                   {/* Connector line */}
                   {index < sortedNiveaux.length - 1 && (
                     <div
@@ -223,7 +227,7 @@ export function FormationNiveaux() {
                   )}
 
                   <Card
-                    className={`transition-all duration-300 animate-slide-up ${
+                    className={`transition-all duration-300 ${
                       !isEnabled
                         ? 'opacity-50 cursor-not-allowed'
                         : 'hover:shadow-lg cursor-pointer'
@@ -234,7 +238,6 @@ export function FormationNiveaux() {
                         ? 'border-border hover:border-primary/30'
                         : 'border-border'
                     }`}
-                    style={{ animationDelay: `${index * 100}ms` }}
                     onClick={() => {
                       if (!isEnabled) return;
                       navigate(
@@ -294,7 +297,7 @@ export function FormationNiveaux() {
                       </div>
                     </CardContent>
                   </Card>
-                </div>
+                </ScrollReveal>
               );
             })}
           </div>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -8,6 +8,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { StatsCard } from '../../components/StatsCard';
+import { ScrollReveal } from '../../components/ScrollReveal';
 import { Badge } from '../../components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import {
@@ -597,29 +598,46 @@ export function ManagerDashboard() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <div className="border-b border-border bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-2xl font-bold mb-1">{t('managerDashboard.title')}</h1>
-          <p className="text-muted-foreground">{t('managerDashboard.welcome')} {user?.prenom} {user?.nom}</p>
+      {/* Header */}
+      <div className="relative border-b border-border/80 bg-background/80 backdrop-blur-md overflow-hidden">
+        <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[650px] h-[280px] bg-gradient-to-tr from-primary/15 via-indigo-500/10 to-transparent blur-3xl -z-10 rounded-full" />
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <ScrollReveal direction="down">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-3">
+              <Award className="w-3.5 h-3.5" />
+              <span>Espace Responsable Pédagogique</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-foreground mb-2">
+              {t('managerDashboard.title')}
+            </h1>
+            <p className="text-muted-foreground max-w-2xl text-sm sm:text-base">
+              {t('managerDashboard.welcome')} <span className="font-semibold text-foreground">{user?.prenom} {user?.nom}</span>
+            </p>
+          </ScrollReveal>
         </div>
       </div>
+
+      {/* Main Content */}
       <div className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4 z-flow-grid">
-          <StatsCard title={t('common.eleves')} value={String(eleves.length)} description={eleves.filter(e => e.statut === 'actif').length + ' ' + t('managerDashboard.activeStudents')} icon={Users} />
-          <StatsCard title={t('common.formations')} value={String(formations.length)} description={formations.filter(f => f.statut === 'active').length + ' ' + t('managerDashboard.activeFormations')} icon={BookOpen} />
-          <StatsCard title={t('common.inscriptions')} value={String(inscriptions.length)} description={completionRate + ' ' + t('managerDashboard.completion')} icon={TrendingUp} />
-          <StatsCard title={t('common.certifications')} value={String(certifications.length)} description={t('managerDashboard.certificates')} icon={Award} />
-        </div>
+        {/* Stats */}
+        <ScrollReveal direction="up" delay={0.1}>
+          <div className="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4 z-flow-grid">
+            <StatsCard title={t('common.eleves')} value={String(eleves.length)} description={eleves.filter(e => e.statut === 'actif').length + ' ' + t('managerDashboard.activeStudents')} icon={Users} />
+            <StatsCard title={t('common.formations')} value={String(formations.length)} description={formations.filter(f => f.statut === 'active').length + ' ' + t('managerDashboard.activeFormations')} icon={BookOpen} />
+            <StatsCard title={t('common.inscriptions')} value={String(inscriptions.length)} description={completionRate + ' ' + t('managerDashboard.completion')} icon={TrendingUp} />
+            <StatsCard title={t('common.certifications')} value={String(certifications.length)} description={t('managerDashboard.certificates')} icon={Award} />
+          </div>
+        </ScrollReveal>
 
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7 gap-1">
-            <TabsTrigger value="dashboard"><BarChart3 className="h-4 w-4 mr-1" />{t('managerDashboard.table')}</TabsTrigger>
-            <TabsTrigger value="eleves"><Users className="h-4 w-4 mr-1" />{t('common.eleves')}</TabsTrigger>
-            <TabsTrigger value="formations"><BookOpen className="h-4 w-4 mr-1" />{t('common.formations')}</TabsTrigger>
-            <TabsTrigger value="seances"><Calendar className="h-4 w-4 mr-1" />{t('managerDashboard.sessionsTab')}</TabsTrigger>
-            <TabsTrigger value="inscriptions"><FileText className="h-4 w-4 mr-1" />{t('common.inscriptions')}</TabsTrigger>
-            <TabsTrigger value="certifications"><Award className="h-4 w-4 mr-1" />{t('common.certifications')}</TabsTrigger>
-            <TabsTrigger value="chatbot" onClick={() => { if (!chatInitialized) { setChatInitialized(true); loadChatHistory(); } }}><Bot className="h-4 w-4 mr-1" aria-hidden="true" />Chatbot</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 p-1.5 bg-muted/60 backdrop-blur-md rounded-2xl border border-border/60 shadow-sm h-auto">
+            <TabsTrigger value="dashboard" className="gap-1.5 rounded-xl py-2 data-[state=active]:shadow-md transition-all"><BarChart3 className="h-4 w-4" />{t('managerDashboard.table')}</TabsTrigger>
+            <TabsTrigger value="eleves" className="gap-1.5 rounded-xl py-2 data-[state=active]:shadow-md transition-all"><Users className="h-4 w-4" />{t('common.eleves')}</TabsTrigger>
+            <TabsTrigger value="formations" className="gap-1.5 rounded-xl py-2 data-[state=active]:shadow-md transition-all"><BookOpen className="h-4 w-4" />{t('common.formations')}</TabsTrigger>
+            <TabsTrigger value="seances" className="gap-1.5 rounded-xl py-2 data-[state=active]:shadow-md transition-all"><Calendar className="h-4 w-4" />{t('managerDashboard.sessionsTab')}</TabsTrigger>
+            <TabsTrigger value="inscriptions" className="gap-1.5 rounded-xl py-2 data-[state=active]:shadow-md transition-all"><FileText className="h-4 w-4" />{t('common.inscriptions')}</TabsTrigger>
+            <TabsTrigger value="certifications" className="gap-1.5 rounded-xl py-2 data-[state=active]:shadow-md transition-all"><Award className="h-4 w-4" />{t('common.certifications')}</TabsTrigger>
+            <TabsTrigger value="chatbot" className="gap-1.5 rounded-xl py-2 data-[state=active]:shadow-md transition-all" onClick={() => { if (!chatInitialized) { setChatInitialized(true); loadChatHistory(); } }}><Bot className="h-4 w-4" aria-hidden="true" />Chatbot</TabsTrigger>
           </TabsList>
 
           {/* ==================== DASHBOARD ==================== */}

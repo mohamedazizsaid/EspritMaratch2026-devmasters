@@ -167,4 +167,27 @@ export const logsApi = {
       return null;
     }
   },
+
+  async purgeAllLogs(): Promise<{ deletedCount: number } | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/logs/purge-all`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`Logs purge-all endpoint returned ${response.status}: ${response.statusText}`);
+        return null;
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Error purging all logs:', error);
+      return null;
+    }
+  },
 };
+

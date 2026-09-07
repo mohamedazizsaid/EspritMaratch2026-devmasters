@@ -13,7 +13,9 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
-  name: string;
+  nom?: string;
+  prenom?: string;
+  name?: string;
   role?: string;
 }
 
@@ -22,7 +24,7 @@ export interface AuthResponse {
   user?: {
     _id: string;
     email: string;
-    name: string;
+    name?: string;
     role?: string;
     nom?: string;
     prenom?: string;
@@ -36,7 +38,7 @@ export interface AuthResponse {
 export interface UserProfile {
   _id: string;
   email: string;
-  name: string;
+  name?: string;
   nom?: string;
   prenom?: string;
   role?: string;
@@ -50,11 +52,29 @@ class AuthService {
     try {
       const url = getApiUrl(API_CONFIG.AUTH.REGISTER);
       console.log('[AuthService] Register attempt to:', url);
+
+      // Assurer la conformité avec le backend (nom, prenom requis)
+      let nom = data.nom || '';
+      let prenom = data.prenom || '';
+
+      if ((!nom || !prenom) && data.name) {
+        const parts = data.name.trim().split(' ');
+        prenom = parts[0] || 'Prénom';
+        nom = parts.slice(1).join(' ') || 'Nom';
+      }
+
+      const payload = {
+        nom: nom || 'Nom',
+        prenom: prenom || 'Prénom',
+        email: data.email,
+        password: data.password,
+        role: data.role || 'Formateurs',
+      };
       
       const response = await fetch(url, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {

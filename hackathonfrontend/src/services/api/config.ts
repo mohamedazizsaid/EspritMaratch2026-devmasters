@@ -8,7 +8,13 @@
 // En prod : URL définie dans les variables Vercel
 export const getBaseURL = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl) return envUrl;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
+    return envUrl.replace(/\/+$/, '');
+  }
+  // En production hébergée (Render, Vercel, etc.), dépend de l'origin si aucune URL d'API explicite
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return `${window.location.origin}/api`;
+  }
   // Fallback pour le développement local uniquement
   return 'http://localhost:3000/api';
 };

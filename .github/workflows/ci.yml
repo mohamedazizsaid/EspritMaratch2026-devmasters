@@ -2,9 +2,9 @@ name: CI — FormaPro
 
 on:
   push:
-    branches: []
+    branches: [aziz]
   pull_request:
-    branches: []
+    branches: [aziz]
 
 jobs:
   # ─────────────────────────────────────────────

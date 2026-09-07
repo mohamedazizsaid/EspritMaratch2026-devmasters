@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
+import { motion } from "framer-motion";
 
 import { cn } from "./utils";
 
@@ -42,7 +43,7 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "data-[state=active]:bg-card dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-xl border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "data-[state=active]:bg-card dark:data-[state=active]:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-xl border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all duration-200 focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}
@@ -50,17 +51,39 @@ function TabsTrigger({
   );
 }
 
+interface TabsContentProps
+  extends React.ComponentProps<typeof TabsPrimitive.Content> {
+  slideDistance?: number;
+  slideDuration?: number;
+}
+
 function TabsContent({
   className,
+  children,
+  slideDistance = -32,
+  slideDuration = 0.38,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.Content>) {
+}: TabsContentProps) {
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("flex-1 outline-none", className)}
+      className="flex-1 outline-none overflow-x-clip"
       {...props}
-    />
+    >
+      <motion.div
+        initial={{ opacity: 0, x: slideDistance }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{
+          duration: slideDuration,
+          ease: [0.16, 1, 0.3, 1],
+        }}
+        className={cn("w-full", className)}
+      >
+        {children}
+      </motion.div>
+    </TabsPrimitive.Content>
   );
 }
 
 export { Tabs, TabsList, TabsTrigger, TabsContent };
+

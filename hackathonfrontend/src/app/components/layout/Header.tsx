@@ -106,9 +106,13 @@ export function Header({ isAuthenticated = false, userRole, onLogout }: HeaderPr
                 </>
               ) : (
                 <>
-                 
+                  <Link to="/register">
+                    <Button variant="outline" size="sm" className="rounded-xl border-primary/30 text-primary hover:bg-primary/10 transition-all">
+                      Devenir Formateur
+                    </Button>
+                  </Link>
                   <Link to="/login">
-                    <Button size="sm">
+                    <Button size="sm" className="rounded-xl shadow-md shadow-primary/20 hover:shadow-lg transition-all">
                       {t('common.login')}
                     </Button>
                   </Link>
@@ -184,18 +188,18 @@ export function Header({ isAuthenticated = false, userRole, onLogout }: HeaderPr
                     </Button>
                   </>
                 ) : (
-                  <>
+                  <div className="flex flex-col gap-2">
+                    <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" size="sm" className="w-full rounded-xl border-primary/30 text-primary">
+                        Devenir Formateur
+                      </Button>
+                    </Link>
                     <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" size="sm" className="w-full">
+                      <Button size="sm" className="w-full rounded-xl shadow-md">
                         {t('common.login')}
                       </Button>
                     </Link>
-                    <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                      <Button size="sm" className="w-full">
-                        {t('common.register')}
-                      </Button>
-                    </Link>
-                  </>
+                  </div>
                 )}
               </div>
             </div>

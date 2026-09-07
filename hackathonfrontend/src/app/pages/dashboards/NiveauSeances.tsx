@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FaceIDCamera } from '../../components/FaceIDCamera';
+import { API_CONFIG } from '../../../services/api/config';
+import { ScrollReveal } from '../../components/ScrollReveal';
 
 interface Seance {
   _id: string;
@@ -100,7 +102,7 @@ export function NiveauSeances() {
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:3000/api/formation/${formationId}`
+          `${API_CONFIG.BASE_URL}/formation/${formationId}`
         );
         if (!response.ok) {
           throw new Error(`Erreur API: ${response.status}`);
@@ -153,12 +155,12 @@ export function NiveauSeances() {
     setLoadingViewPresence(true);
     try {
       const response = await fetch(
-        `http://localhost:3000/api/formation/seance/${seance._id}/students`
+        `${API_CONFIG.BASE_URL}/formation/seance/${seance._id}/students`
       );
       const inscriptions: InscriptionStudent[] = response.ok ? await response.json() : [];
 
       const presResponse = await fetch(
-        `http://localhost:3000/api/presence/seance/${seance._id}`
+        `${API_CONFIG.BASE_URL}/presence/seance/${seance._id}`
       );
       const existingPresences = presResponse.ok ? await presResponse.json() : [];
 
@@ -197,13 +199,13 @@ export function NiveauSeances() {
       setSelectedSeance(seance);
 
       const response = await fetch(
-        `http://localhost:3000/api/formation/seance/${seance._id}/students`
+        `${API_CONFIG.BASE_URL}/formation/seance/${seance._id}/students`
       );
       if (!response.ok) throw new Error(`Erreur API: ${response.status}`);
       const inscriptions: InscriptionStudent[] = await response.json();
 
       const presResponse = await fetch(
-        `http://localhost:3000/api/presence/seance/${seance._id}`
+        `${API_CONFIG.BASE_URL}/presence/seance/${seance._id}`
       );
       const existingPresences = presResponse.ok ? await presResponse.json() : [];
 
@@ -243,7 +245,7 @@ export function NiveauSeances() {
       for (const record of presenceList) {
         try {
           // Try to create; if 409, update existing
-          const res = await fetch('http://localhost:3000/api/presence', {
+          const res = await fetch(`${API_CONFIG.BASE_URL}/presence`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -255,14 +257,14 @@ export function NiveauSeances() {
           if (!res.ok && (res.status === 409 || res.status === 400)) {
             // Presence already exists — try to update
             const presResponse = await fetch(
-              `http://localhost:3000/api/presence/seance/${selectedSeance._id}`
+              `${API_CONFIG.BASE_URL}/presence/seance/${selectedSeance._id}`
             );
             const existing = presResponse.ok ? await presResponse.json() : [];
             const match = existing.find(
               (p: any) => (p.id_inscription?._id || p.id_inscription) === record.inscriptionId
             );
             if (match) {
-              await fetch(`http://localhost:3000/api/presence/${match._id}`, {
+              await fetch(`${API_CONFIG.BASE_URL}/presence/${match._id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ present: record.present }),
@@ -294,7 +296,7 @@ export function NiveauSeances() {
 
       // Fetch students for this formation via seance
       const response = await fetch(
-        `http://localhost:3000/api/formation/seance/${seance._id}/students`
+        `${API_CONFIG.BASE_URL}/formation/seance/${seance._id}/students`
       );
       if (!response.ok) {
         throw new Error(`Erreur API: ${response.status}`);
@@ -304,7 +306,7 @@ export function NiveauSeances() {
 
       // Also fetch existing presences for this seance
       const presResponse = await fetch(
-        `http://localhost:3000/api/presence/seance/${seance._id}`
+        `${API_CONFIG.BASE_URL}/presence/seance/${seance._id}`
       );
       const existingPresences = presResponse.ok ? await presResponse.json() : [];
 
@@ -353,7 +355,7 @@ export function NiveauSeances() {
       // 1. Save all presences
       for (const record of presenceList) {
         try {
-          await fetch('http://localhost:3000/api/presence', {
+          await fetch(`${API_CONFIG.BASE_URL}/presence`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -369,7 +371,7 @@ export function NiveauSeances() {
 
       // 2. Validate seance (statut = true)
       const response = await fetch(
-        `http://localhost:3000/api/formation/seance/${selectedSeance._id}/validate`,
+        `${API_CONFIG.BASE_URL}/formation/seance/${selectedSeance._id}/validate`,
         { method: 'PATCH' }
       );
 
@@ -512,7 +514,7 @@ export function NiveauSeances() {
             const enabled = isSeanceEnabled(seance, index, sortedSeances);
 
             return (
-              <div key={seance._id} className="relative">
+              <ScrollReveal key={seance._id} direction="up" delay={index * 0.07} className="relative">
                 {/* Connector line */}
                 {index < sortedSeances.length - 1 && (
                   <div
@@ -523,7 +525,7 @@ export function NiveauSeances() {
                 )}
 
                 <Card
-                  className={`transition-all duration-300 animate-slide-up ${
+                  className={`transition-all duration-300 ${
                     !enabled
                       ? 'opacity-50 cursor-not-allowed'
                       : 'hover:shadow-lg cursor-pointer'
@@ -534,7 +536,6 @@ export function NiveauSeances() {
                       ? 'border-border hover:border-primary/40'
                       : 'border-border'
                   }`}
-                  style={{ animationDelay: `${index * 80}ms` }}
                   onClick={() => {
                     if (enabled && !seance.statut) handleSeanceClick(seance);
                   }}
@@ -636,7 +637,7 @@ export function NiveauSeances() {
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              </ScrollReveal>
             );
           })}
         </div>

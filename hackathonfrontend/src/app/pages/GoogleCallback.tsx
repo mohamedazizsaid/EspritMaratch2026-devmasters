@@ -79,8 +79,11 @@ export function GoogleCallback({ onLogin }: GoogleCallbackProps) {
   }, [searchParams, navigate, onLogin]);
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary/5 via-background to-secondary/20">
-      <Card className="w-full max-w-md">
+    <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-primary/5 via-background to-background overflow-hidden">
+      {/* Glow blobs */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-primary/10 blur-[130px] -z-10 rounded-full pointer-events-none" />
+
+      <Card className="w-full max-w-md border-border/80 shadow-2xl backdrop-blur-md bg-card/90 relative z-10">
         <CardHeader className="text-center">
           <CardTitle className="flex items-center justify-center gap-2">
             {status === 'loading' && (

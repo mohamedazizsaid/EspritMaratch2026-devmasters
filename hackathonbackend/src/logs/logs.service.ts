@@ -93,4 +93,9 @@ export class LogsService {
         const result = await this.logModel.deleteMany({ timestamp: { $lt: cutoff } }).exec();
         return { deletedCount: result.deletedCount };
     }
+
+    async purgeAllLogs() {
+        const result = await this.logModel.deleteMany({}).exec();
+        return { deletedCount: result.deletedCount };
+    }
 }

@@ -18,8 +18,9 @@ export function TestimonialCard({ name, role, content, avatar, rating }: Testimo
     .toUpperCase();
 
   return (
-    <Card className="h-full">
-      <CardContent className="p-6">
+    <Card className="h-full rounded-2xl border border-border/70 bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:border-primary/40 hover:-translate-y-1 relative overflow-hidden">
+      <div className="pointer-events-none absolute -top-8 -right-8 w-24 h-24 bg-primary/10 rounded-full blur-xl" />
+      <CardContent className="p-6 relative z-10">
         {/* Rating */}
         <div className="mb-4 flex gap-1" role="img" aria-label={`Note: ${rating} sur 5 étoiles`}>
           {[...Array(5)].map((_, i) => (

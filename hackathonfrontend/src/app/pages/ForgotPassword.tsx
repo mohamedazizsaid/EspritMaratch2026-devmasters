@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Eye, EyeOff, ArrowLeft, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { authService } from '../../services/api';
+import { ScrollReveal } from '../components/ScrollReveal';
 import '../styles/forgot-password.css';
 
 export function ForgotPassword() {
@@ -168,19 +169,26 @@ export function ForgotPassword() {
   };
 
   return (
-    <div className="forgot-password-container">
-      <div className="w-full max-w-md">
+    <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-primary/5 via-background to-background overflow-hidden">
+      {/* Glow blobs */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-primary/15 blur-[130px] -z-10 rounded-full pointer-events-none" />
+
+      <ScrollReveal direction="up" className="w-full max-w-md relative z-10">
         {/* Header */}
         <div className="forgot-password-header">
-          <h1 className="forgot-password-title">Réinitialiser votre mot de passe</h1>
-          <p className="forgot-password-description">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/25 bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase mb-3">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+            Récupération de Compte
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl mb-2">Mot de passe oublié</h1>
+          <p className="text-sm text-muted-foreground">
             {step === 'email'
-              ? 'Entrez votre email pour recevoir un code de réinitialisation'
+              ? 'Entrez votre email pour recevoir un code de réinitialisation sécurisé'
               : 'Entrez le code reçu et votre nouveau mot de passe'}
           </p>
         </div>
 
-        <Card className="forgot-password-card">
+        <Card className="rounded-3xl border border-border/80 shadow-2xl backdrop-blur-xl bg-card/90 overflow-hidden">
           {/* Step Indicator */}
           <div className="forgot-password-steps">
             <div className={`step-item ${step === 'email' ? 'active' : step === 'code' ? 'completed' : ''}`}>
@@ -418,7 +426,7 @@ export function ForgotPassword() {
             </Link>
           </p>
         </div>
-      </div>
+      </ScrollReveal>
 
       {/* Accessibility: Loading announcer */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">

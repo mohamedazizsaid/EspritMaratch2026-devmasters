@@ -1,7 +1,6 @@
-﻿// ============================================================
-// API Client  HTTP wrapper for the NestJS backend
-// ============================================================
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+import { getBaseURL } from '../../services/api/config';
+
+const API_BASE_URL = getBaseURL();
 
 let authToken: string | null = null;
 

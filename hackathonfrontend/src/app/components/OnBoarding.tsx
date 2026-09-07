@@ -33,6 +33,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { useTranslation, type Language } from '../lib/i18n';
+import { API_CONFIG } from '../../services/api/config';
 
 // ─── Language → TTS locale mapping ──────────────────────────────────────────
 const TTS_LOCALES: Record<Language, string> = {
@@ -665,7 +666,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
       const accessibilityData = buildAccessibilityProfile();
       const token = localStorage.getItem('access_token');
 
-      await fetch(`http://localhost:3000/api/auth/onboarding/${userId}`, {
+      await fetch(`${API_CONFIG.BASE_URL}/auth/onboarding/${userId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -756,7 +757,9 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
             >
-              <Card className="border-2 border-primary/20 shadow-xl">
+              <Card className="rounded-3xl border border-border/80 bg-card/90 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+                {/* Ambient glow in card */}
+                <div className="pointer-events-none absolute -top-12 -right-12 w-36 h-36 bg-primary/15 rounded-full blur-2xl" />
                 <CardHeader className="text-center pb-2">
                   <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/25">
                     <Sparkles className="h-10 w-10 text-primary-foreground" />
@@ -879,7 +882,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="border-2 border-primary/20 shadow-xl">
+              <Card className="rounded-3xl border border-border/80 bg-card/90 backdrop-blur-xl shadow-2xl relative overflow-hidden">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(answers[currentQuestion].category)}`}>
@@ -900,17 +903,17 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
                       variant="outline"
                       size="lg"
                       onClick={() => handleAnswer(true)}
-                      className="h-24 flex flex-col gap-2 hover:bg-primary/10 hover:border-primary transition-all text-lg"
+                      className="h-24 flex flex-col gap-2 rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all text-lg font-bold shadow-sm"
                       aria-label={t('onboarding.answerYesAria')}
                     >
-                      <CheckCircle2 className="h-8 w-8 text-green-500" />
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500" />
                       {t('onboarding.answerYes')}
                     </Button>
                     <Button
                       variant="outline"
                       size="lg"
                       onClick={() => handleAnswer(false)}
-                      className="h-24 flex flex-col gap-2 hover:bg-muted transition-all text-lg"
+                      className="h-24 flex flex-col gap-2 rounded-2xl border-2 border-border/80 bg-muted/30 hover:bg-muted/70 hover:border-border hover:scale-[1.02] active:scale-[0.98] transition-all text-lg font-bold shadow-sm"
                       aria-label={t('onboarding.answerNoAria')}
                     >
                       <span className="h-8 w-8 rounded-full border-2 border-muted-foreground flex items-center justify-center text-muted-foreground text-xl">✕</span>
@@ -992,7 +995,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.3 }}
             >
-              <Card className="border-2 border-primary/20 shadow-xl">
+              <Card className="rounded-3xl border border-border/80 bg-card/90 backdrop-blur-xl shadow-2xl relative overflow-hidden">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
@@ -1092,7 +1095,7 @@ export function OnBoarding({ userId, userName, userRole, onComplete }: OnBoardin
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
             >
-              <Card className="border-2 border-green-500/30 shadow-xl">
+              <Card className="rounded-3xl border-2 border-emerald-500/30 bg-card/90 backdrop-blur-xl shadow-2xl relative overflow-hidden">
                 <CardContent className="py-12 text-center space-y-6">
                   <motion.div
                     initial={{ scale: 0 }}
